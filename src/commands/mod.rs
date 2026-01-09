@@ -10,6 +10,7 @@ pub mod get;
 pub mod init;
 pub mod list;
 pub mod new;
+pub mod search;
 pub mod update;
 
 pub use self::{
@@ -18,5 +19,6 @@ pub use self::{
     init::execute as init,
     list::{execute as list, ListFilter, SortBy},
     new::{execute as new, NewArgs},
+    search::{execute as search, SearchArgs},
     update::{execute as update, UpdateArgs},
 };

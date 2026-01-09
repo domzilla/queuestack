@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use owo_colors::OwoColorize;
 
-use qstack::commands::{self, GetArgs, ListFilter, NewArgs, SortBy, UpdateArgs};
+use qstack::commands::{self, GetArgs, ListFilter, NewArgs, SearchArgs, SortBy, UpdateArgs};
 
 const GLOBAL_HELP: &str = "\
 Configuration Files:
@@ -198,6 +198,41 @@ Output: Prints the relative path to the item file."
         closed: bool,
     },
 
+    /// Search for items and interactively select one to open
+    #[command(
+        long_about = "Search for items by title or ID and interactively select one to open.\n\n\
+Performs a case-insensitive substring search against item titles and IDs. If multiple \
+items match, displays an interactive selection menu using arrow keys.\n\n\
+Search behavior:\n  \
+- Single match: opens the item directly\n  \
+- Multiple matches: shows interactive selector\n  \
+- No matches: returns an error\n\n\
+Use --full-text to also search within the markdown body content.",
+        after_help = "Examples:\n  \
+qstack search \"login bug\"             Search and select interactively\n  \
+qstack search \"260109\"                Search by ID\n  \
+qstack search \"auth\" --full-text      Include body content in search\n  \
+qstack search \"bug\" --no-open         Just list matching items\n  \
+qstack search \"old task\" --closed     Search in archived items\n\n\
+Interactive mode: Use arrow keys to navigate, Enter to select, Esc to cancel."
+    )]
+    Search {
+        /// Search query (matches against title and ID)
+        query: String,
+
+        /// Also search in item body content
+        #[arg(long, help = "Include body content in search")]
+        full_text: bool,
+
+        /// Don't open - just list matching items
+        #[arg(long, help = "List matching items without interactive selection")]
+        no_open: bool,
+
+        /// Search in closed/archived items
+        #[arg(long, help = "Search in closed/archived items instead of open")]
+        closed: bool,
+    },
+
     /// Update an existing item
     #[command(
         long_about = "Update an existing item's metadata.\n\n\
@@ -335,6 +370,18 @@ fn run() -> Result<()> {
             label,
             author,
             sort,
+            no_open,
+            closed,
+        }),
+
+        Commands::Search {
+            query,
+            full_text,
+            no_open,
+            closed,
+        } => commands::search(&SearchArgs {
+            query,
+            full_text,
             no_open,
             closed,
         }),
