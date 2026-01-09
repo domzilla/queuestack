@@ -5,9 +5,15 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+    fs,
+    io::{self, IsTerminal, Write},
+    path::PathBuf,
+    process::Command,
+};
 
 use anyhow::{Context, Result};
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 use crate::id::DEFAULT_PATTERN;
@@ -66,14 +72,18 @@ impl GlobalConfig {
         dirs::home_dir().map(|home| home.join(GLOBAL_CONFIG_FILE))
     }
 
-    /// Loads the global config from ~/.qstack
+    /// Loads the global config from ~/.qstack, creating it if it doesn't exist
     pub fn load() -> Result<Self> {
         let Some(path) = Self::path() else {
             return Ok(Self::default());
         };
 
         if !path.exists() {
-            return Ok(Self::default());
+            // Auto-generate default config
+            let config = Self::default();
+            config.save()?;
+            eprintln!("{} Created global config: {}", "✓".green(), path.display());
+            return Ok(config);
         }
 
         let content = fs::read_to_string(&path)
@@ -108,6 +118,38 @@ impl GlobalConfig {
         }
 
         None
+    }
+
+    /// Prompts the user for their name and saves it to the config.
+    /// Only prompts if running in a terminal.
+    pub fn prompt_and_save_user_name(&mut self) -> Result<Option<String>> {
+        // Only prompt if we're in a terminal
+        if !io::stdin().is_terminal() {
+            return Ok(None);
+        }
+
+        eprint!("{}", "Enter your name for item authorship: ".bold());
+        io::stderr().flush()?;
+
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+
+        let name = input.trim().to_string();
+        if name.is_empty() {
+            return Ok(None);
+        }
+
+        // Save to config
+        self.user_name = Some(name.clone());
+        self.save()?;
+
+        eprintln!(
+            "{} Saved user name to {}",
+            "✓".green(),
+            Self::path().map_or_else(|| "~/.qstack".to_string(), |p| p.display().to_string())
+        );
+
+        Ok(Some(name))
     }
 }
 

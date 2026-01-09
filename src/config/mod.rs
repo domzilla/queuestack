@@ -72,6 +72,24 @@ impl Config {
         self.global.resolve_user_name()
     }
 
+    /// Returns the effective user name, prompting if not available.
+    /// Falls back to: config `user_name` -> git `user.name` -> prompt -> error
+    pub fn user_name_or_prompt(&mut self) -> Result<String> {
+        // Try existing sources first
+        if let Some(name) = self.global.resolve_user_name() {
+            return Ok(name);
+        }
+
+        // Prompt user for name
+        if let Some(name) = self.global.prompt_and_save_user_name()? {
+            return Ok(name);
+        }
+
+        anyhow::bail!(
+            "No user name available. Set user_name in ~/.qstack or configure git user.name"
+        )
+    }
+
     /// Returns the effective editor command
     pub fn editor(&self) -> Option<String> {
         self.global.editor.clone().or_else(|| {

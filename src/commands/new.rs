@@ -24,14 +24,10 @@ pub struct NewArgs {
 
 /// Executes the new command.
 pub fn execute(args: NewArgs) -> Result<()> {
-    let config = Config::load()?;
+    let mut config = Config::load()?;
 
-    // Get author name
-    let author = config.user_name().ok_or_else(|| {
-        anyhow::anyhow!(
-            "No user name configured. Set user_name in ~/.qstack or enable use_git_user"
-        )
-    })?;
+    // Get author name (prompts if not available)
+    let author = config.user_name_or_prompt()?;
 
     // Generate ID
     let id = id::generate(config.id_pattern());
