@@ -1,0 +1,49 @@
+[package]
+name = "qstack"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+authors = ["Dominic Rodemer"]
+license = "MIT"
+description = "CLI-based task and issue tracker with documentation-as-code philosophy"
+repository = "https://github.com/dominicroemer/qstack"
+readme = "README.md"
+keywords = ["cli", "task", "issue", "tracker", "markdown"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_yml = "0.0"
+toml = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1"
+thiserror = "2"
+walkdir = "2"
+dirs = "6"
+rand = "0.9"
+comfy-table = "7"
+owo-colors = "4"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Allowed lints
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+multiple_crate_versions = "allow"
