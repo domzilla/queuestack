@@ -59,7 +59,9 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
         let item = &items[0];
         let path = item.path.as_ref().context("Item has no path")?;
         println!("{}", config.relative_path(path).display());
-        editor::open(path, &config).context("Failed to open editor")?;
+        if config.auto_open() {
+            editor::open(path, &config).context("Failed to open editor")?;
+        }
         return Ok(());
     }
 
@@ -76,7 +78,9 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
     let path = item.path.as_ref().context("Item has no path")?;
 
     println!("{}", config.relative_path(path).display());
-    editor::open(path, &config).context("Failed to open editor")?;
+    if config.auto_open() {
+        editor::open(path, &config).context("Failed to open editor")?;
+    }
 
     Ok(())
 }
