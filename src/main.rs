@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use owo_colors::OwoColorize;
 
-use qstack::commands::{self, ListFilter, NewArgs, SortBy, UpdateArgs};
+use qstack::commands::{self, GetArgs, ListFilter, NewArgs, SortBy, UpdateArgs};
 
 const GLOBAL_HELP: &str = "\
 Configuration Files:
@@ -149,6 +149,50 @@ qstack list --id 26                Show item if ID prefix is unique"
         sort: SortBy,
     },
 
+    /// Get the first matching item and open it
+    #[command(
+        long_about = "Get the first matching item and optionally open it in your editor.\n\n\
+Retrieves a single item based on filters and sort order, outputs its path, and opens \
+it in your configured editor (unless suppressed with --no-open).\n\n\
+This is useful for quickly jumping to the most relevant item - for example, getting \
+the oldest open bug or the most recently created task.",
+        after_help = "Examples:\n  \
+qstack get                             Get first item (by ID), open in editor\n  \
+qstack get --no-open                   Get first item, print path only\n  \
+qstack get --sort date                 Get most recently created item\n  \
+qstack get --label bug                 Get first item with 'bug' label\n  \
+qstack get --label bug --sort date     Get most recent bug\n  \
+qstack get --closed                    Get first closed/archived item\n  \
+qstack get --author \"John\"             Get first item by author\n\n\
+Output: Prints the relative path to the item file."
+    )]
+    Get {
+        /// Filter by label
+        #[arg(long, help = "Filter items containing this label")]
+        label: Option<String>,
+
+        /// Filter by author
+        #[arg(long, help = "Filter items by author name")]
+        author: Option<String>,
+
+        /// Sort order (determines which item is "first")
+        #[arg(
+            long,
+            value_enum,
+            default_value = "id",
+            help = "Sort order: id, date, or title"
+        )]
+        sort: SortBy,
+
+        /// Don't open the item in editor
+        #[arg(long, help = "Don't open item in editor (just print path)")]
+        no_open: bool,
+
+        /// Get from closed/archived items
+        #[arg(long, help = "Get from closed/archived items instead of open")]
+        closed: bool,
+    },
+
     /// Update an existing item
     #[command(
         long_about = "Update an existing item's metadata.\n\n\
@@ -272,6 +316,20 @@ fn run() -> Result<()> {
             label,
             author,
             sort,
+        }),
+
+        Commands::Get {
+            label,
+            author,
+            sort,
+            no_open,
+            closed,
+        } => commands::get(&GetArgs {
+            label,
+            author,
+            sort,
+            no_open,
+            closed,
         }),
 
         Commands::Update {

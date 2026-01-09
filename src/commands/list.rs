@@ -49,50 +49,40 @@ impl Default for ListFilter {
     }
 }
 
-/// Executes the list command.
-pub fn execute(filter: &ListFilter) -> Result<()> {
-    let config = Config::load()?;
-
-    // Collect items based on status filter
-    let paths: Vec<_> = if filter.closed {
-        storage::walk_archived(&config).collect()
-    } else if filter.open {
-        storage::walk_items(&config).collect()
-    } else {
-        // Default: show open items only
-        storage::walk_items(&config).collect()
-    };
-
-    // Load and filter items
-    let mut items: Vec<Item> = paths
-        .into_iter()
-        .filter_map(|path| Item::load(&path).ok())
-        .filter(|item| apply_filters(item, filter))
-        .collect();
-
-    // Handle single item detail view
-    if let Some(ref partial_id) = filter.id {
-        let path = storage::find_by_id(&config, partial_id)?;
-        let item = Item::load(&path)?;
-        print_item_detail(&item, &config);
-        return Ok(());
-    }
-
-    // Sort items
-    sort_items(&mut items, filter.sort);
-
-    // Display
-    if items.is_empty() {
-        println!("{}", "No items found.".dimmed());
-        return Ok(());
-    }
-
-    print_table(&items);
-
-    Ok(())
+/// Common filter options for item queries
+pub struct ItemFilter {
+    pub label: Option<String>,
+    pub author: Option<String>,
 }
 
-fn apply_filters(item: &Item, filter: &ListFilter) -> bool {
+/// Collects and filters items from storage.
+///
+/// If `include_archived` is true, collects from archive directory,
+/// otherwise collects from the main stack directory.
+pub fn collect_items(config: &Config, include_archived: bool, filter: &ItemFilter) -> Vec<Item> {
+    let paths: Vec<_> = if include_archived {
+        storage::walk_archived(config).collect()
+    } else {
+        storage::walk_items(config).collect()
+    };
+
+    paths
+        .into_iter()
+        .filter_map(|path| Item::load(&path).ok())
+        .filter(|item| apply_item_filter(item, filter))
+        .collect()
+}
+
+/// Sorts items in place by the given sort order.
+pub fn sort_items(items: &mut [Item], sort: SortBy) {
+    match sort {
+        SortBy::Id => items.sort_by(|a, b| a.id().cmp(b.id())),
+        SortBy::Date => items.sort_by_key(|item| Reverse(item.created_at())),
+        SortBy::Title => items.sort_by_key(|item| item.title().to_lowercase()),
+    }
+}
+
+fn apply_item_filter(item: &Item, filter: &ItemFilter) -> bool {
     // Label filter
     if let Some(ref label) = filter.label {
         if !item.labels().iter().any(|l| l.eq_ignore_ascii_case(label)) {
@@ -110,12 +100,43 @@ fn apply_filters(item: &Item, filter: &ListFilter) -> bool {
     true
 }
 
-fn sort_items(items: &mut [Item], sort: SortBy) {
-    match sort {
-        SortBy::Id => items.sort_by(|a, b| a.id().cmp(b.id())),
-        SortBy::Date => items.sort_by_key(|item| Reverse(item.created_at())),
-        SortBy::Title => items.sort_by_key(|item| item.title().to_lowercase()),
+/// Executes the list command.
+pub fn execute(filter: &ListFilter) -> Result<()> {
+    let config = Config::load()?;
+
+    // Handle single item detail view by ID
+    if let Some(ref partial_id) = filter.id {
+        let path = storage::find_by_id(&config, partial_id)?;
+        let item = Item::load(&path)?;
+        print_item_detail(&item, &config);
+        return Ok(());
     }
+
+    // Collect items based on status filter
+    let item_filter = ItemFilter {
+        label: filter.label.clone(),
+        author: filter.author.clone(),
+    };
+
+    let mut items = if filter.closed {
+        collect_items(&config, true, &item_filter)
+    } else {
+        // Default: show open items only
+        collect_items(&config, false, &item_filter)
+    };
+
+    // Sort items
+    sort_items(&mut items, filter.sort);
+
+    // Display
+    if items.is_empty() {
+        println!("{}", "No items found.".dimmed());
+        return Ok(());
+    }
+
+    print_table(&items);
+
+    Ok(())
 }
 
 fn print_table(items: &[Item]) {
