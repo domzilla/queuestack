@@ -12,11 +12,18 @@
 
 ## Code Quality (MANDATORY)
 
-### Before Any Commit
-Always run the full quality gate:
+### Pre-commit Hook
+A git pre-commit hook enforces the quality gate automatically. Install it after cloning:
+```bash
+./scripts/install-hooks.sh
+```
+
+The hook runs on every commit:
 ```bash
 cargo fmt --check && cargo clippy -- -D warnings && cargo build && cargo test
 ```
+
+To bypass temporarily (not recommended): `git commit --no-verify`
 
 ## Project Structure
 ```
@@ -48,6 +55,11 @@ qstack/
 │       ├── search.rs       # qstack search <query>
 │       ├── update.rs       # qstack update --id <id>
 │       └── close.rs        # qstack close/reopen
+├── scripts/
+│   └── install-hooks.sh    # Git hooks installer
+├── tests/
+│   ├── harness.rs          # Test utilities
+│   └── integration.rs      # Integration tests
 ├── Cargo.toml
 ├── Cargo.lock
 ├── rustfmt.toml
