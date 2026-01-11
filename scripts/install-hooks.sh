@@ -21,6 +21,9 @@ cat > "$HOOKS_DIR/pre-commit" << 'EOF'
 
 set -e
 
+# Ensure cargo is in PATH (needed for GUI apps like Tower)
+export PATH="$HOME/.cargo/bin:$PATH"
+
 echo "Running pre-commit quality gate..."
 
 # Format check
