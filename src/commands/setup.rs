@@ -12,6 +12,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::ui::select_from_list;
+
 use anyhow::{Context, Result};
 use clap_complete::Shell;
 use owo_colors::OwoColorize;
@@ -31,15 +33,17 @@ use crate::{
 use super::completions::generate_to_string;
 
 /// Executes the setup command.
+///
 /// The `cmd` parameter should be a clone of the CLI command for generating completions.
-pub fn execute(cmd: &mut Command) -> Result<()> {
+/// The `shell_override` parameter allows explicit shell specification, bypassing detection.
+pub fn execute(cmd: &mut Command, shell_override: Option<Shell>) -> Result<()> {
     eprintln!("{}\n", "Setting up qstack...".bold());
 
     // Step 1: Ensure global config exists
     setup_global_config()?;
 
     // Step 2: Install shell completions for detected shell
-    setup_completions(cmd)?;
+    setup_completions(cmd, shell_override)?;
 
     eprintln!("\n{} Setup complete!", "✓".green().bold());
 
@@ -64,21 +68,47 @@ fn setup_global_config() -> Result<()> {
     Ok(())
 }
 
-/// Detects the user's shell from environment
-fn detect_shell() -> Option<Shell> {
-    // Check $SHELL environment variable
+/// Detects the user's shell or prompts them to select one.
+///
+/// Detection uses `$SHELL` (the user's configured login shell). If detection
+/// fails or the shell is unrecognized, prompts the user interactively.
+fn detect_or_prompt_shell() -> Result<Shell> {
+    // Try $SHELL environment variable (user's configured login shell)
     if let Ok(shell_path) = env::var("SHELL") {
-        let shell_name = shell_path.rsplit('/').next().unwrap_or(&shell_path);
-        return match shell_name {
+        let name = shell_path.rsplit('/').next().unwrap_or(&shell_path);
+        // Handle login shell prefix (e.g., "-zsh")
+        let name = name.strip_prefix('-').unwrap_or(name);
+
+        if let Some(shell) = match name {
             "zsh" => Some(Shell::Zsh),
             "bash" => Some(Shell::Bash),
             "fish" => Some(Shell::Fish),
             "elvish" => Some(Shell::Elvish),
             "powershell" | "pwsh" => Some(Shell::PowerShell),
             _ => None,
-        };
+        } {
+            return Ok(shell);
+        }
     }
-    None
+
+    // Detection failed, prompt interactively
+    prompt_shell_selection()
+}
+
+/// Prompts the user to select their shell interactively.
+fn prompt_shell_selection() -> Result<Shell> {
+    let shells = ["zsh", "bash", "fish", "elvish", "powershell"];
+
+    let selection = select_from_list("Which shell do you use?", &shells)?;
+
+    Ok(match selection {
+        0 => Shell::Zsh,
+        1 => Shell::Bash,
+        2 => Shell::Fish,
+        3 => Shell::Elvish,
+        4 => Shell::PowerShell,
+        _ => unreachable!(),
+    })
 }
 
 /// Returns the completion file path for each shell
@@ -130,15 +160,11 @@ fn get_rc_file_path(shell: Shell) -> Option<PathBuf> {
     }
 }
 
-/// Sets up shell completions for the detected shell
-fn setup_completions(cmd: &mut Command) -> Result<()> {
-    let Some(shell) = detect_shell() else {
-        eprintln!("{} Could not detect shell from $SHELL", "⚠".yellow());
-        eprintln!(
-            "  Run {} to generate completions manually",
-            "qstack completions <shell>".green()
-        );
-        return Ok(());
+/// Sets up shell completions for the specified or detected shell.
+fn setup_completions(cmd: &mut Command, shell_override: Option<Shell>) -> Result<()> {
+    let shell = match shell_override {
+        Some(s) => s,
+        None => detect_or_prompt_shell()?,
     };
 
     // Generate completions

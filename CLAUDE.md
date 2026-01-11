@@ -87,7 +87,7 @@ qstack/
 - `rand` - Random ID generation
 - `comfy-table` - Table output
 - `owo-colors` - Colored terminal output
-- `dialoguer` - Interactive terminal prompts (search selection)
+- `ratatui` + `crossterm` - Terminal UI (interactive selection, wizard)
 
 ## CLI Commands
 ```bash

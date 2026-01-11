@@ -449,18 +449,27 @@ File attachments are renamed to follow the pattern: {ID}-Attachment-{N}-{name}.{
         long_about = "One-time setup for qstack.\n\n\
 This command helps you get started with qstack by:\n  \
 1. Creating the global configuration file (~/.qstack) if it doesn't exist\n  \
-2. Detecting your shell from $SHELL and installing tab completions\n\n\
+2. Installing tab completions for your shell\n\n\
+Shell detection tries (in order):\n  \
+1. --shell flag if provided\n  \
+2. Shell-specific env vars (FISH_VERSION, ZSH_VERSION, BASH_VERSION)\n  \
+3. $SHELL environment variable (login shell)\n\n\
 Run this once after installing qstack to enable tab completion for commands and arguments.\n\n\
 The setup is idempotent - running it multiple times is safe and will just overwrite \
 the completion script with the latest version.",
         after_help = concat!(
             h!("Examples:"), "\n  ",
-            c!("qstack setup"), "           Run one-time setup\n\n",
+            c!("qstack setup"), "                Run one-time setup (auto-detect shell)\n  ",
+            c!("qstack setup --shell fish"), "   Explicitly specify fish shell\n\n",
             h!("Supported shells:"), " zsh, bash, fish, elvish, powershell\n\n",
-            h!("Note:"), " If shell detection fails, use ", c!("qstack completions <shell>"), " manually."
+            h!("Note:"), " If shell detection fails, use ", c!("--shell"), " to specify explicitly."
         )
     )]
-    Setup,
+    Setup {
+        /// Shell to install completions for (overrides auto-detection)
+        #[arg(long, value_enum, help = "Shell to install completions for")]
+        shell: Option<Shell>,
+    },
 
     /// Generate shell completion scripts
     #[command(
@@ -665,9 +674,9 @@ fn run() -> Result<()> {
             }
         },
 
-        Commands::Setup => {
+        Commands::Setup { shell } => {
             let mut cmd = Cli::command();
-            commands::setup(&mut cmd)
+            commands::setup(&mut cmd, shell)
         }
 
         Commands::Completions { shell } => {
