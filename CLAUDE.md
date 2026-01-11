@@ -1,7 +1,7 @@
 # qstack
 
 ## Project Overview
-`qstack` is a CLI-based task and issue tracker that follows a "documentation as code" philosophy. It stores items as Markdown files with YAML frontmatter, organized in a directory structure within a Git repository. It is designed to be human-readable, grep-friendly, and fully integrated with standard developer workflows. The text-first approach makes it especially versatile in agentic driven workflows.
+`qstack` is a minimal, scriptable task and issue tracker optimized for agent-driven project management. Items are stored as plain Markdown files, making them human-readable, grep-friendly, and easy to integrate into any workflow.
 
 ## Tech Stack
 - **Language**: Rust (stable, minimum 1.75)

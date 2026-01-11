@@ -57,7 +57,7 @@ macro_rules! global_help {
             "\n  ",
             "%y  Year (2 digits)           %m  Month (01-12)\n  ",
             "%d  Day of month (01-31)      %j  Day of year (001-366)\n  ",
-            "%T  Time as Base32 (4 chars)  %R  Random Base32 char (repeat: %RRR)\n  ",
+            "%T  Time (4 chars)            %R  Random char (repeat: %RRR)\n  ",
             "%%  Literal percent sign\n\n",
             h!("Getting Started:"),
             "\n  ",
@@ -86,15 +86,13 @@ macro_rules! global_help {
 #[command(author = "Dominic Rodemer")]
 #[command(version)]
 #[command(styles = STYLES)]
-#[command(about = "CLI-based task and issue tracker with documentation-as-code philosophy")]
+#[command(about = "Minimal, scriptable task and issue tracker for agent-driven workflows")]
 #[command(
-    long_about = "qstack is a CLI-based task and issue tracker that follows a documentation-as-code \
-philosophy. Items are stored as Markdown files with YAML frontmatter in a Git-friendly \
-directory structure, making them easy to version, search, and collaborate on.
+    long_about = "qstack is a minimal, scriptable task and issue tracker optimized for agent-driven \
+project management. Items are stored as plain Markdown files, making them human-readable, \
+grep-friendly, and easy to integrate into any workflow.
 
-Each item gets a unique ID, a slugified filename, and can be organized into categories. \
-The tool integrates with Git for seamless version control and supports customizable \
-ID patterns using Crockford's Base32 encoding."
+Each item gets a unique ID, a slugified filename, and can be organized into categories."
 )]
 #[command(after_help = global_help!())]
 struct Cli {

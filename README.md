@@ -1,6 +1,6 @@
 # qstack
 
-A CLI-based task and issue tracker that follows a "documentation as code" philosophy. Items are stored as Markdown files with YAML frontmatter, organized in a directory structure within a Git repository.
+A minimal, scriptable task and issue tracker optimized for agent-driven project management. Items are stored as plain Markdown files, making them human-readable, grep-friendly, and easy to integrate into any workflow.
 
 ## Installation
 

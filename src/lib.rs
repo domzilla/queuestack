@@ -1,17 +1,16 @@
 //! # qstack
 //!
-//! A CLI-based task and issue tracker following a "documentation as code" philosophy.
+//! A minimal, scriptable task and issue tracker for agent-driven workflows.
 //!
-//! Items are stored as Markdown files with YAML frontmatter, organized in a directory
-//! structure within a Git repository. Designed to be human-readable, grep-friendly,
-//! and fully integrated with standard developer workflows.
+//! Items are stored as plain Markdown files, making them human-readable, grep-friendly,
+//! and easy to integrate into any workflow.
 //!
 //! ## Features
 //!
 //! - **Markdown Storage**: Items are plain Markdown files with YAML frontmatter
 //! - **Git Integration**: Automatic `git mv` to preserve history
 //! - **Categorization**: Organize items in subdirectories
-//! - **Flexible IDs**: Customizable ID patterns using Crockford's Base32
+//! - **Flexible IDs**: Customizable ID patterns
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
