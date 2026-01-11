@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, SearchArgs};
+use qstack::commands::{self, InteractiveArgs, SearchArgs};
 
 #[test]
 fn test_search_by_title() {
@@ -22,8 +22,10 @@ fn test_search_by_title() {
     let args = SearchArgs {
         query: "login".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -42,8 +44,10 @@ fn test_search_by_id() {
     let args = SearchArgs {
         query: "260101".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -62,8 +66,10 @@ fn test_search_case_insensitive() {
     let args = SearchArgs {
         query: "IMPORTANT".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -82,8 +88,10 @@ fn test_search_no_results() {
     let args = SearchArgs {
         query: "nonexistent".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -119,8 +127,10 @@ This is the body with unique keyword: SEARCHTERM123
     let args = SearchArgs {
         query: "SEARCHTERM123".to_string(),
         full_text: true,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -156,8 +166,10 @@ Body with keyword: ONLYINBODY
     let args = SearchArgs {
         query: "ONLYINBODY".to_string(),
         full_text: false, // Not searching body
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -184,8 +196,10 @@ fn test_search_closed_items() {
     let args = SearchArgs {
         query: "archived".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: true,
     };
 
@@ -217,8 +231,10 @@ Body contains: ARCHIVEDCONTENT
     let args = SearchArgs {
         query: "ARCHIVEDCONTENT".to_string(),
         full_text: true,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: true,
     };
 
@@ -242,8 +258,10 @@ fn test_search_multiple_matches() {
     let args = SearchArgs {
         query: "login".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -263,8 +281,10 @@ fn test_search_without_init() {
     let args = SearchArgs {
         query: "test".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -290,8 +310,10 @@ fn test_search_partial_word() {
     let args = SearchArgs {
         query: "auth".to_string(),
         full_text: false,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
         closed: false,
     };
 
@@ -311,8 +333,10 @@ fn test_search_interactive_combinations() {
         let args = SearchArgs {
             query: "login".to_string(),
             full_text: false,
-            interactive: false,
-            no_interactive: true,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            },
             closed: false,
         };
 
@@ -329,8 +353,10 @@ fn test_search_interactive_combinations() {
         let args = SearchArgs {
             query: "login".to_string(),
             full_text: false,
-            interactive: false,
-            no_interactive: false,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: false,
+            },
             closed: false,
         };
 

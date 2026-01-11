@@ -15,6 +15,7 @@ use walkdir::WalkDir;
 use crate::{
     config::Config,
     constants::ITEM_FILE_EXTENSION,
+    id,
     item::{slugify, Item},
 };
 
@@ -53,6 +54,15 @@ pub fn walk_archived(config: &Config) -> impl Iterator<Item = PathBuf> {
 /// Walks all items (both active and archived).
 pub fn walk_all(config: &Config) -> impl Iterator<Item = PathBuf> {
     walk_items(config).chain(walk_archived(config))
+}
+
+/// Loads all items (both active and archived) into memory.
+///
+/// Silently skips items that fail to parse.
+pub fn load_all_items(config: &Config) -> Vec<Item> {
+    walk_all(config)
+        .filter_map(|path| Item::load(&path).ok())
+        .collect()
 }
 
 /// Finds an item by partial ID match.
@@ -105,7 +115,9 @@ pub fn create_item(config: &Config, item: &Item) -> Result<PathBuf> {
 }
 
 /// Moves an item to the archive.
-pub fn archive_item(config: &Config, path: &Path) -> Result<PathBuf> {
+///
+/// Returns the new path and any warnings from moving attachments.
+pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String>)> {
     let filename = path
         .file_name()
         .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
@@ -114,18 +126,24 @@ pub fn archive_item(config: &Config, path: &Path) -> Result<PathBuf> {
     std::fs::create_dir_all(&archive_path)?;
 
     // Move attachments first
-    if let Some(src_dir) = path.parent() {
-        move_attachments(src_dir, &archive_path, path);
-    }
+    let warnings = path.parent().map_or_else(Vec::new, |src_dir| {
+        move_attachments(src_dir, &archive_path, path)
+    });
 
     let dest = archive_path.join(filename);
     git::move_file(path, &dest)?;
 
-    Ok(dest)
+    Ok((dest, warnings))
 }
 
 /// Moves an item from the archive back to the stack.
-pub fn unarchive_item(config: &Config, path: &Path, category: Option<&str>) -> Result<PathBuf> {
+///
+/// Returns the new path and any warnings from moving attachments.
+pub fn unarchive_item(
+    config: &Config,
+    path: &Path,
+    category: Option<&str>,
+) -> Result<(PathBuf, Vec<String>)> {
     let filename = path
         .file_name()
         .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
@@ -134,14 +152,14 @@ pub fn unarchive_item(config: &Config, path: &Path, category: Option<&str>) -> R
     std::fs::create_dir_all(&dest_dir)?;
 
     // Move attachments first
-    if let Some(src_dir) = path.parent() {
-        move_attachments(src_dir, &dest_dir, path);
-    }
+    let warnings = path.parent().map_or_else(Vec::new, |src_dir| {
+        move_attachments(src_dir, &dest_dir, path)
+    });
 
     let dest = dest_dir.join(filename);
     git::move_file(path, &dest)?;
 
-    Ok(dest)
+    Ok((dest, warnings))
 }
 
 /// Renames an item file (when title changes).
@@ -159,7 +177,13 @@ pub fn rename_item(path: &Path, new_filename: &str) -> Result<PathBuf> {
 }
 
 /// Moves an item to a different category.
-pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) -> Result<PathBuf> {
+///
+/// Returns the new path and any warnings from moving attachments.
+pub fn move_to_category(
+    config: &Config,
+    path: &Path,
+    category: Option<&str>,
+) -> Result<(PathBuf, Vec<String>)> {
     let filename = path
         .file_name()
         .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
@@ -169,20 +193,90 @@ pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) ->
 
     let dest = dest_dir.join(filename);
 
-    if path != dest {
+    let warnings = if path == dest {
+        Vec::new()
+    } else {
         // Move attachments first
-        if let Some(src_dir) = path.parent() {
-            move_attachments(src_dir, &dest_dir, path);
-        }
+        let warnings = path.parent().map_or_else(Vec::new, |src_dir| {
+            move_attachments(src_dir, &dest_dir, path)
+        });
         git::move_file(path, &dest)?;
-    }
+        warnings
+    };
 
-    Ok(dest)
+    Ok((dest, warnings))
 }
 
 // =============================================================================
 // Attachment Operations
 // =============================================================================
+
+/// Encapsulates the attachment filename convention: `{item_id}-Attachment-{counter}-{name}.{ext}`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttachmentFileName {
+    /// Item ID prefix
+    pub item_id: String,
+    /// Attachment counter (1-based)
+    pub counter: u32,
+    /// Slugified name
+    pub name: String,
+    /// File extension (without dot), if any
+    pub extension: Option<String>,
+}
+
+impl AttachmentFileName {
+    /// Creates a new attachment filename.
+    pub fn new(item_id: &str, counter: u32, name: &str, extension: Option<&str>) -> Self {
+        Self {
+            item_id: item_id.to_string(),
+            counter,
+            name: name.to_string(),
+            extension: extension.map(String::from),
+        }
+    }
+
+    /// Parses an attachment filename.
+    ///
+    /// Expected format: `{item_id}-Attachment-{counter}-{name}.{ext}`
+    pub fn parse(filename: &str) -> Option<Self> {
+        // Remove extension
+        let (stem, extension) = filename.rfind('.').map_or((filename, None), |dot_pos| {
+            (&filename[..dot_pos], Some(&filename[dot_pos + 1..]))
+        });
+
+        // Split by "-Attachment-"
+        let (item_id, rest) = stem.split_once("-Attachment-")?;
+
+        // Extract counter and name
+        let (counter_str, name) = rest.split_once('-').unwrap_or((rest, "file"));
+        let counter = counter_str.parse().ok()?;
+
+        Some(Self {
+            item_id: item_id.to_string(),
+            counter,
+            name: name.to_string(),
+            extension: extension.map(String::from),
+        })
+    }
+
+    /// Returns the full filename string.
+    pub fn to_filename(&self) -> String {
+        self.extension.as_ref().map_or_else(
+            || format!("{}-Attachment-{}-{}", self.item_id, self.counter, self.name),
+            |ext| {
+                format!(
+                    "{}-Attachment-{}-{}.{}",
+                    self.item_id, self.counter, self.name, ext
+                )
+            },
+        )
+    }
+
+    /// Returns the prefix used to find attachments for an item.
+    pub fn prefix_for_item(item_id: &str) -> String {
+        format!("{item_id}-Attachment-")
+    }
+}
 
 /// Result of processing a single attachment.
 #[derive(Debug)]
@@ -240,7 +334,7 @@ pub fn process_attachment(
 
 /// Copies a file as an attachment to the item's directory.
 ///
-/// Returns the new filename: `{item_id}-Attachment-{counter}-{slugified_name}.{ext}`
+/// Returns the new filename using the standard attachment naming convention.
 pub fn copy_attachment(
     source: &Path,
     item_dir: &Path,
@@ -253,22 +347,15 @@ pub fn copy_attachment(
         .and_then(|s| s.to_str())
         .unwrap_or("attachment");
 
-    let extension = source.extension().and_then(|s| s.to_str()).unwrap_or("");
+    let extension = source.extension().and_then(|s| s.to_str());
 
     // Create slugified name
     let slug = slugify(original_name);
-    let slug_part = if slug.is_empty() {
-        "file".to_string()
-    } else {
-        slug
-    };
+    let slug_part = if slug.is_empty() { "file" } else { &slug };
 
-    // Build new filename
-    let new_filename = if extension.is_empty() {
-        format!("{item_id}-Attachment-{counter}-{slug_part}")
-    } else {
-        format!("{item_id}-Attachment-{counter}-{slug_part}.{extension}")
-    };
+    // Build filename using the struct
+    let attachment = AttachmentFileName::new(item_id, counter, slug_part, extension);
+    let new_filename = attachment.to_filename();
 
     let dest = item_dir.join(&new_filename);
 
@@ -318,9 +405,9 @@ pub fn delete_attachment(item_dir: &Path, filename: &str) -> Result<()> {
 
 /// Finds all attachment files for an item in a directory.
 ///
-/// Looks for files matching `{item_id}-Attachment-*`
+/// Looks for files matching the attachment naming convention.
 pub fn find_attachment_files(item_dir: &Path, item_id: &str) -> Vec<PathBuf> {
-    let prefix = format!("{item_id}-Attachment-");
+    let prefix = AttachmentFileName::prefix_for_item(item_id);
 
     if !item_dir.exists() {
         return Vec::new();
@@ -342,42 +429,36 @@ pub fn find_attachment_files(item_dir: &Path, item_id: &str) -> Vec<PathBuf> {
 /// Moves attachment files alongside an item.
 ///
 /// Called internally when archiving, unarchiving, or moving items between categories.
-fn move_attachments(src_dir: &Path, dest_dir: &Path, item_path: &Path) {
-    // Extract item ID from the item filename
-    let item_id = item_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .and_then(|name| {
-            // ID is everything before the first dash after the pattern YYMMDD-XXXXX
-            // Format: "260109-02F7K9M-title-slug.md" -> "260109-02F7K9M"
-            let parts: Vec<&str> = name.splitn(3, '-').collect();
-            if parts.len() >= 2 {
-                Some(format!("{}-{}", parts[0], parts[1]))
-            } else {
-                None
-            }
-        });
+/// Returns a list of warnings for any attachments that failed to move.
+fn move_attachments(src_dir: &Path, dest_dir: &Path, item_path: &Path) -> Vec<String> {
+    let mut warnings = Vec::new();
 
-    let Some(item_id) = item_id else {
-        return; // Can't determine ID, skip attachment move
+    // Extract item ID from the item filename
+    let Some(item_id) = item_path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .and_then(id::extract_from_filename)
+    else {
+        return warnings; // Can't determine ID, skip attachment move
     };
 
-    let attachments = find_attachment_files(src_dir, &item_id);
+    let attachments = find_attachment_files(src_dir, item_id);
 
     for attachment_path in attachments {
         if let Some(filename) = attachment_path.file_name() {
             let dest_path = dest_dir.join(filename);
             // Use git mv for tracked files, falls back to rename
             if let Err(e) = git::move_file(&attachment_path, &dest_path) {
-                // Log warning but continue - attachment might have been manually deleted
-                eprintln!(
-                    "Warning: Failed to move attachment {}: {}",
+                warnings.push(format!(
+                    "Failed to move attachment {}: {}",
                     attachment_path.display(),
                     e
-                );
+                ));
             }
         }
     }
+
+    warnings
 }
 
 // Tests for storage are in tests/integration.rs as they require

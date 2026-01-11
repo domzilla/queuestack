@@ -18,7 +18,7 @@ use crate::{
     item::{Frontmatter, Item, Status},
     storage::{self, AttachmentResult},
     tui::{self, screens::NewItemWizard},
-    ui,
+    ui::InteractiveArgs,
 };
 
 /// Arguments for the new command
@@ -27,8 +27,7 @@ pub struct NewArgs {
     pub labels: Vec<String>,
     pub category: Option<String>,
     pub attachments: Vec<String>,
-    pub interactive: bool,
-    pub no_interactive: bool,
+    pub interactive: InteractiveArgs,
 }
 
 /// Executes the new command.
@@ -98,8 +97,7 @@ pub fn execute(args: NewArgs) -> Result<()> {
     }
 
     // Resolve interactive mode
-    let interactive =
-        ui::resolve_interactive(args.interactive, args.no_interactive, config.interactive());
+    let interactive = args.interactive.resolve(config.interactive());
 
     // Open editor if interactive
     if interactive {
@@ -117,9 +115,7 @@ fn collect_existing_metadata(config: &Config) -> (Vec<String>, Vec<String>) {
     let mut categories: HashSet<String> = HashSet::new();
     let mut labels: HashSet<String> = HashSet::new();
 
-    let paths: Vec<_> = storage::walk_items(config)
-        .chain(storage::walk_archived(config))
-        .collect();
+    let paths: Vec<_> = storage::walk_all(config).collect();
 
     for path in paths {
         if let Ok(item) = Item::load(&path) {

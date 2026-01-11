@@ -6,6 +6,16 @@
 //! Licensed under the MIT License.
 
 // =============================================================================
+// UI Display
+// =============================================================================
+
+/// Maximum length for title display in tables (truncated with ellipsis).
+pub const UI_TITLE_TRUNCATE_LEN: usize = 40;
+
+/// Maximum length for labels display in tables (truncated with ellipsis).
+pub const UI_LABELS_TRUNCATE_LEN: usize = 20;
+
+// =============================================================================
 // File System
 // =============================================================================
 

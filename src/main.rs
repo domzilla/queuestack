@@ -13,8 +13,8 @@ use owo_colors::OwoColorize;
 use clap::CommandFactory;
 use clap_complete::Shell;
 use qstack::commands::{
-    self, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs, CategoriesArgs, LabelsArgs, ListFilter,
-    NewArgs, SearchArgs, SortBy, UpdateArgs,
+    self, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs, CategoriesArgs, InteractiveArgs,
+    LabelsArgs, ListFilter, NewArgs, SearchArgs, SortBy, StatusFilter, UpdateArgs,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -550,6 +550,7 @@ fn main() {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn run() -> Result<()> {
     let cli = Cli::parse();
 
@@ -568,27 +569,37 @@ fn run() -> Result<()> {
             labels: label,
             category,
             attachments: attachment,
-            interactive,
-            no_interactive,
+            interactive: InteractiveArgs {
+                interactive,
+                no_interactive,
+            },
         }),
 
         Commands::List {
-            open,
+            open: _,
             closed,
             label,
             author,
             sort,
             interactive,
             no_interactive,
-        } => commands::list(&ListFilter {
-            open,
-            closed,
-            label,
-            author,
-            sort,
-            interactive,
-            no_interactive,
-        }),
+        } => {
+            let status = if closed {
+                StatusFilter::Closed
+            } else {
+                StatusFilter::Open // Default to open
+            };
+            commands::list(&ListFilter {
+                status,
+                label,
+                author,
+                sort,
+                interactive: InteractiveArgs {
+                    interactive,
+                    no_interactive,
+                },
+            })
+        }
 
         Commands::Search {
             query,
@@ -599,8 +610,10 @@ fn run() -> Result<()> {
         } => commands::search(&SearchArgs {
             query,
             full_text,
-            interactive,
-            no_interactive,
+            interactive: InteractiveArgs {
+                interactive,
+                no_interactive,
+            },
             closed,
         }),
 
@@ -626,16 +639,20 @@ fn run() -> Result<()> {
             interactive,
             no_interactive,
         } => commands::labels(&LabelsArgs {
-            interactive,
-            no_interactive,
+            interactive: InteractiveArgs {
+                interactive,
+                no_interactive,
+            },
         }),
 
         Commands::Categories {
             interactive,
             no_interactive,
         } => commands::categories(&CategoriesArgs {
-            interactive,
-            no_interactive,
+            interactive: InteractiveArgs {
+                interactive,
+                no_interactive,
+            },
         }),
 
         Commands::Attachments { action } => match action {

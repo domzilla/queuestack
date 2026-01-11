@@ -7,18 +7,16 @@
 
 use std::io::IsTerminal;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 use super::list::{collect_items, sort_items, ItemFilter, SortBy};
-use crate::{config::Config, editor, item::Item, ui};
+use crate::{config::Config, item::search::matches_query, ui, ui::InteractiveArgs};
 
 /// Arguments for the search command
-#[allow(clippy::struct_excessive_bools)]
 pub struct SearchArgs {
     pub query: String,
     pub full_text: bool,
-    pub interactive: bool,
-    pub no_interactive: bool,
+    pub interactive: InteractiveArgs,
     pub closed: bool,
 }
 
@@ -35,8 +33,7 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
     let mut items = collect_items(&config, args.closed, &item_filter);
 
     // Filter by search query
-    let query_lower = args.query.to_lowercase();
-    items.retain(|item| matches_query(item, &query_lower, args.full_text));
+    items.retain(|item| matches_query(item, &args.query, args.full_text));
 
     // Sort by ID for consistent ordering
     sort_items(&mut items, SortBy::Id);
@@ -46,8 +43,7 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
     }
 
     // Resolve interactive mode
-    let interactive =
-        ui::resolve_interactive(args.interactive, args.no_interactive, config.interactive());
+    let interactive = args.interactive.resolve(config.interactive());
 
     // Non-interactive mode: just print the list
     if !interactive {
@@ -61,10 +57,7 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
 
     // Single match: open directly
     if items.len() == 1 {
-        let item = &items[0];
-        let path = item.path.as_ref().context("Item has no path")?;
-        println!("{}", config.relative_path(path).display());
-        editor::open(path, &config).context("Failed to open editor")?;
+        ui::open_item_in_editor(&items[0], &config)?;
         return Ok(());
     }
 
@@ -77,31 +70,7 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
     }
 
     let selection = ui::select_item("Select an item", &items)?;
-    let item = &items[selection];
-    let path = item.path.as_ref().context("Item has no path")?;
-
-    println!("{}", config.relative_path(path).display());
-    editor::open(path, &config).context("Failed to open editor")?;
+    ui::open_item_in_editor(&items[selection], &config)?;
 
     Ok(())
-}
-
-/// Check if an item matches the search query.
-fn matches_query(item: &Item, query: &str, full_text: bool) -> bool {
-    // Always search title
-    if item.title().to_lowercase().contains(query) {
-        return true;
-    }
-
-    // Always search ID
-    if item.id().to_lowercase().contains(query) {
-        return true;
-    }
-
-    // Optionally search body
-    if full_text && item.body.to_lowercase().contains(query) {
-        return true;
-    }
-
-    false
 }

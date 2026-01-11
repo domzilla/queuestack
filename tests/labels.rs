@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, LabelsArgs};
+use qstack::commands::{self, InteractiveArgs, LabelsArgs};
 
 #[test]
 fn test_labels_empty_project() {
@@ -17,8 +17,10 @@ fn test_labels_empty_project() {
     commands::init().expect("init should succeed");
 
     let args = LabelsArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::labels(&args);
@@ -36,8 +38,10 @@ fn test_labels_shows_unique_labels() {
     create_test_item(&env, "260103-CCC", "Task 3", "open", &["feature"], None);
 
     let args = LabelsArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::labels(&args);
@@ -73,8 +77,10 @@ fn test_labels_includes_archived_items() {
     .expect("move to archive");
 
     let args = LabelsArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should include labels from both open and archived items
@@ -89,8 +95,10 @@ fn test_labels_without_init() {
     // Don't init
 
     let args = LabelsArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::labels(&args);

@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, ListFilter, SortBy};
+use qstack::commands::{self, InteractiveArgs, ListFilter, SortBy, StatusFilter};
 
 #[test]
 fn test_list_empty_project() {
@@ -17,13 +17,14 @@ fn test_list_empty_project() {
     commands::init().expect("init should succeed");
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should not error even if empty
@@ -51,13 +52,14 @@ fn test_list_shows_open_items() {
     .expect("move to archive");
 
     let filter = ListFilter {
-        open: true,
-        closed: false,
+        status: StatusFilter::Open,
         label: None,
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should succeed (output goes to stdout)
@@ -82,13 +84,14 @@ fn test_list_filter_by_label() {
     );
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: Some("bug".to_string()),
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -105,13 +108,14 @@ fn test_list_sort_by_title() {
     create_test_item(&env, "260102-BBB", "Alpha Task", "open", &[], None);
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: None,
         sort: SortBy::Title,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -135,13 +139,14 @@ fn test_list_shows_closed_items() {
     .expect("move to archive");
 
     let filter = ListFilter {
-        open: false,
-        closed: true,
+        status: StatusFilter::Closed,
         label: None,
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -158,13 +163,14 @@ fn test_list_filter_by_author() {
 
     // Author filter uses exact match (case-insensitive)
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: Some("Test User".to_string()),
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -181,13 +187,14 @@ fn test_list_sort_by_date() {
     create_test_item(&env, "260102-BBB", "Second Task", "open", &[], None);
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: None,
         sort: SortBy::Date,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -213,13 +220,14 @@ fn test_list_combined_filters() {
 
     // Author filter uses exact match (case-insensitive)
     let filter = ListFilter {
-        open: true,
-        closed: false,
+        status: StatusFilter::Open,
         label: Some("bug".to_string()),
         author: Some("Test User".to_string()),
         sort: SortBy::Title,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -242,13 +250,14 @@ fn test_list_open_and_closed_flags_together() {
 
     // Both flags true - should show all items
     let filter = ListFilter {
-        open: true,
-        closed: true,
+        status: StatusFilter::All,
         label: None,
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -265,13 +274,14 @@ fn test_list_without_init() {
     // Don't call init
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -288,13 +298,14 @@ fn test_list_author_case_insensitive() {
 
     // Author filter uses exact match but is case-insensitive
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: None,
         author: Some("TEST USER".to_string()), // uppercase of "Test User"
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::list(&filter);
@@ -310,13 +321,14 @@ fn test_list_nonexistent_label_filter() {
     create_test_item(&env, "260101-AAA", "Task", "open", &["bug"], None);
 
     let filter = ListFilter {
-        open: false,
-        closed: false,
+        status: StatusFilter::All,
         label: Some("nonexistent-label".to_string()),
         author: None,
         sort: SortBy::Id,
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should succeed but return empty list
@@ -334,13 +346,14 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
-            open: false,
-            closed: false,
+            status: StatusFilter::All,
             label: None,
             author: None,
             sort: SortBy::Id,
-            interactive: false,
-            no_interactive: true, // Override interactive
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            }, // Override interactive
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -354,13 +367,14 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
-            open: false,
-            closed: false,
+            status: StatusFilter::All,
             label: None,
             author: None,
             sort: SortBy::Id,
-            interactive: false,
-            no_interactive: false, // Would show selector if in terminal
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: false,
+            }, // Would show selector if in terminal
         };
 
         // Works because we're not in a terminal, so interactive selection is skipped
@@ -375,13 +389,14 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
-            open: false,
-            closed: false,
+            status: StatusFilter::All,
             label: None,
             author: None,
             sort: SortBy::Id,
-            interactive: false,
-            no_interactive: false,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: false,
+            },
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -395,13 +410,14 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
-            open: false,
-            closed: false,
+            status: StatusFilter::All,
             label: None,
             author: None,
             sort: SortBy::Id,
-            interactive: false,
-            no_interactive: true,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            },
         };
 
         commands::list(&filter).expect("list should succeed");

@@ -6,6 +6,7 @@
 //! Licensed under the MIT License.
 
 pub mod parser;
+pub mod search;
 pub mod slug;
 
 use std::{
@@ -187,6 +188,13 @@ impl Item {
         self.frontmatter.labels.retain(|l| l != label);
     }
 
+    /// Returns the directory containing this item (and its attachments).
+    ///
+    /// Returns `None` if the item has no path set.
+    pub fn attachment_dir(&self) -> Option<&Path> {
+        self.path.as_ref().and_then(|p| p.parent())
+    }
+
     /// Returns the attachments
     pub fn attachments(&self) -> &[String] {
         &self.frontmatter.attachments
@@ -211,24 +219,16 @@ impl Item {
     /// Returns the next attachment counter for this item
     ///
     /// Parses existing attachment filenames to find the highest counter and returns max + 1.
-    /// Pattern: `{ID}-Attachment-{N}-{name}.{ext}`
+    /// Uses `AttachmentFileName::parse()` as the single source of truth for the naming convention.
     pub fn next_attachment_counter(&self) -> u32 {
-        let id = &self.frontmatter.id;
-        let prefix = format!("{id}-Attachment-");
+        use crate::storage::AttachmentFileName;
 
         self.frontmatter
             .attachments
             .iter()
-            .filter_map(|a| {
-                // Skip URLs
-                if is_url(a) {
-                    return None;
-                }
-                // Parse counter from filename
-                a.strip_prefix(&prefix)
-                    .and_then(|rest| rest.split('-').next())
-                    .and_then(|n| n.parse::<u32>().ok())
-            })
+            .filter(|a| !is_url(a))
+            .filter_map(|a| AttachmentFileName::parse(a))
+            .map(|af| af.counter)
             .max()
             .map_or(1, |n| n + 1)
     }

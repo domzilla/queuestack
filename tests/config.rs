@@ -9,7 +9,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, ProjectConfigBuilder, TestEnv};
-use qstack::commands::{self, execute_close, NewArgs};
+use qstack::commands::{self, execute_close, InteractiveArgs, NewArgs};
 
 // =============================================================================
 // Config Combination Tests (interactive + no_interactive)
@@ -29,8 +29,10 @@ fn test_config_interactive_true_no_interactive_false() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: false, // Would open editor if in terminal
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: false,
+        }, // Would open editor if in terminal
     };
 
     let result = commands::new(args);
@@ -51,8 +53,10 @@ fn test_config_interactive_true_no_interactive_true() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true, // Overrides interactive
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        }, // Overrides interactive
     };
 
     let result = commands::new(args);
@@ -73,8 +77,10 @@ fn test_config_interactive_false_no_interactive_false() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: false, // Doesn't matter since interactive is false
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: false,
+        }, // Doesn't matter since interactive is false
     };
 
     let result = commands::new(args);
@@ -94,8 +100,10 @@ fn test_config_interactive_false_no_interactive_true() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::new(args);
@@ -125,8 +133,10 @@ fn test_use_git_user_disabled() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -159,8 +169,10 @@ fn test_use_git_user_enabled_with_explicit_name() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -263,8 +275,10 @@ fn test_custom_stack_directory() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -332,8 +346,10 @@ fn test_different_users_in_parallel() {
             labels: vec![],
             category: None,
             attachments: vec![],
-            interactive: false,
-            no_interactive: true,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            },
         };
 
         commands::new(args).expect("new should succeed");
@@ -353,8 +369,10 @@ fn test_different_users_in_parallel() {
             labels: vec![],
             category: None,
             attachments: vec![],
-            interactive: false,
-            no_interactive: true,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            },
         };
 
         commands::new(args).expect("new should succeed");

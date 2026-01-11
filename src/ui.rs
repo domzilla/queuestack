@@ -13,10 +13,51 @@ use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, Color, ContentArrangement,
 
 use crate::{
     config::Config,
+    constants::{UI_LABELS_TRUNCATE_LEN, UI_TITLE_TRUNCATE_LEN},
     editor, id,
     item::{Item, Status},
     tui::screens::select_from_list as tui_select,
 };
+
+// =============================================================================
+// Aggregation Utilities
+// =============================================================================
+
+use std::collections::HashMap;
+use std::hash::Hash;
+
+/// Counts occurrences by a single key extracted from each item.
+///
+/// For items that map to exactly one key (e.g., category).
+pub fn count_by<T, K, F>(items: &[T], key_fn: F) -> HashMap<K, usize>
+where
+    K: Eq + Hash,
+    F: Fn(&T) -> K,
+{
+    let mut counts = HashMap::new();
+    for item in items {
+        *counts.entry(key_fn(item)).or_insert(0) += 1;
+    }
+    counts
+}
+
+/// Counts occurrences by multiple keys extracted from each item.
+///
+/// For items that map to multiple keys (e.g., labels).
+pub fn count_by_many<T, K, I, F>(items: &[T], keys_fn: F) -> HashMap<K, usize>
+where
+    K: Eq + Hash,
+    I: IntoIterator<Item = K>,
+    F: Fn(&T) -> I,
+{
+    let mut counts = HashMap::new();
+    for item in items {
+        for key in keys_fn(item) {
+            *counts.entry(key).or_insert(0) += 1;
+        }
+    }
+    counts
+}
 
 // =============================================================================
 // Interactive Mode Resolution
@@ -51,33 +92,6 @@ impl InteractiveArgs {
     pub fn should_run(&self, config: &Config) -> bool {
         self.resolve(config.interactive()) && std::io::stdout().is_terminal()
     }
-}
-
-/// Resolves interactive mode from CLI flags and config.
-///
-/// Priority: explicit `--interactive` flag > explicit `--no-interactive` flag > config default
-pub const fn resolve_interactive(
-    interactive_flag: bool,
-    no_interactive_flag: bool,
-    config_default: bool,
-) -> bool {
-    if interactive_flag {
-        true
-    } else if no_interactive_flag {
-        false
-    } else {
-        config_default
-    }
-}
-
-/// Checks if we should run interactive mode (combines flag resolution with terminal check).
-pub fn should_run_interactive(
-    interactive_flag: bool,
-    no_interactive_flag: bool,
-    config: &Config,
-) -> bool {
-    resolve_interactive(interactive_flag, no_interactive_flag, config.interactive())
-        && std::io::stdout().is_terminal()
 }
 
 // =============================================================================
@@ -165,8 +179,8 @@ pub fn print_items_table_ref(items: &[&Item]) {
         table.add_row(vec![
             Cell::new(short_id),
             status_cell,
-            Cell::new(truncate(item.title(), 40)),
-            Cell::new(truncate(&labels, 20)),
+            Cell::new(truncate(item.title(), UI_TITLE_TRUNCATE_LEN)),
+            Cell::new(truncate(&labels, UI_LABELS_TRUNCATE_LEN)),
             Cell::new(category),
         ]);
     }
@@ -187,8 +201,8 @@ pub fn print_items_table_compact(items: &[&Item]) {
         table.add_row(vec![
             Cell::new(short_id),
             status_cell,
-            Cell::new(truncate(item.title(), 40)),
-            Cell::new(truncate(&labels, 20)),
+            Cell::new(truncate(item.title(), UI_TITLE_TRUNCATE_LEN)),
+            Cell::new(truncate(&labels, UI_LABELS_TRUNCATE_LEN)),
         ]);
     }
 

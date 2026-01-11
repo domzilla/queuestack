@@ -8,7 +8,7 @@
 mod common;
 
 use common::{GlobalConfigBuilder, ProjectConfigBuilder, TestEnv};
-use qstack::commands::{self, NewArgs};
+use qstack::commands::{self, InteractiveArgs, NewArgs};
 
 #[test]
 fn test_new_creates_item() {
@@ -21,8 +21,10 @@ fn test_new_creates_item() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -50,8 +52,10 @@ fn test_new_with_labels() {
         labels: vec!["bug".to_string(), "urgent".to_string()],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -73,8 +77,10 @@ fn test_new_with_category() {
         labels: vec![],
         category: Some("bugs".to_string()),
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -94,8 +100,10 @@ fn test_new_uses_custom_id_pattern() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -123,8 +131,10 @@ fn test_new_project_id_pattern_overrides_global() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -148,8 +158,10 @@ fn test_new_with_labels_and_category() {
         labels: vec!["bug".to_string(), "urgent".to_string(), "p0".to_string()],
         category: Some("bugs".to_string()),
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -186,8 +198,10 @@ fn test_new_with_attachments() {
             file2.to_string_lossy().to_string(),
             "https://github.com/issue/42".to_string(),
         ],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -245,8 +259,10 @@ fn test_new_with_empty_labels() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -280,8 +296,10 @@ fn test_new_multiple_items_unique_ids() {
             labels: vec![],
             category: None,
             attachments: vec![],
-            interactive: false,
-            no_interactive: true,
+            interactive: InteractiveArgs {
+                interactive: false,
+                no_interactive: true,
+            },
         };
         commands::new(args).expect("new should succeed");
     }
@@ -319,8 +337,10 @@ fn test_new_nested_category() {
         labels: vec![],
         category: Some("level1/level2".to_string()),
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed with nested category");
@@ -340,8 +360,10 @@ fn test_new_without_init() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::new(args);

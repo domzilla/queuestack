@@ -7,10 +7,10 @@
 
 use std::cmp::Reverse;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use owo_colors::OwoColorize;
 
-use crate::{config::Config, editor, item::Item, storage, ui};
+use crate::{config::Config, item::Item, storage, ui, ui::InteractiveArgs};
 
 /// Sort order for listing
 #[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
@@ -21,28 +21,35 @@ pub enum SortBy {
     Title,
 }
 
+/// Status filter for item listing
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum StatusFilter {
+    /// Show only open/active items (default)
+    #[default]
+    Open,
+    /// Show only closed/archived items
+    Closed,
+    /// Show all items regardless of status
+    All,
+}
+
 /// Filter options for listing
-#[allow(clippy::struct_excessive_bools)]
 pub struct ListFilter {
-    pub open: bool,
-    pub closed: bool,
+    pub status: StatusFilter,
     pub label: Option<String>,
     pub author: Option<String>,
     pub sort: SortBy,
-    pub interactive: bool,
-    pub no_interactive: bool,
+    pub interactive: InteractiveArgs,
 }
 
 impl Default for ListFilter {
     fn default() -> Self {
         Self {
-            open: false,
-            closed: false,
+            status: StatusFilter::default(),
             label: None,
             author: None,
             sort: SortBy::Id,
-            interactive: false,
-            no_interactive: false,
+            interactive: InteractiveArgs::default(),
         }
     }
 }
@@ -108,11 +115,15 @@ pub fn execute(filter: &ListFilter) -> Result<()> {
         author: filter.author.clone(),
     };
 
-    let mut items = if filter.closed {
-        collect_items(&config, true, &item_filter)
-    } else {
-        // Default: show open items only
-        collect_items(&config, false, &item_filter)
+    let mut items = match filter.status {
+        StatusFilter::Open => collect_items(&config, false, &item_filter),
+        StatusFilter::Closed => collect_items(&config, true, &item_filter),
+        StatusFilter::All => {
+            let mut open = collect_items(&config, false, &item_filter);
+            let closed = collect_items(&config, true, &item_filter);
+            open.extend(closed);
+            open
+        }
     };
 
     // Sort items
@@ -127,16 +138,13 @@ pub fn execute(filter: &ListFilter) -> Result<()> {
     ui::print_items_table(&items);
 
     // Check interactive mode
-    if !ui::should_run_interactive(filter.interactive, filter.no_interactive, &config) {
+    if !filter.interactive.should_run(&config) {
         return Ok(());
     }
 
     let selection = ui::select_item("Select an item to open", &items)?;
     let item = &items[selection];
-    let path = item.path.as_ref().context("Item has no path")?;
-
-    println!("{}", config.relative_path(path).display());
-    editor::open(path, &config).context("Failed to open editor")?;
+    ui::open_item_in_editor(item, &config)?;
 
     Ok(())
 }

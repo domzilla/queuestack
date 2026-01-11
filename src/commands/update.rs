@@ -78,7 +78,13 @@ pub fn execute(args: UpdateArgs) -> Result<()> {
         } else {
             args.category.as_deref()
         };
-        path = storage::move_to_category(&config, &path, category)?;
+        let (new_path, warnings) = storage::move_to_category(&config, &path, category)?;
+        path = new_path;
+
+        // Print any attachment move warnings
+        for warning in warnings {
+            eprintln!("{} {}", "warning:".yellow(), warning);
+        }
     }
 
     println!(

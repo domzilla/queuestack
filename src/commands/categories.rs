@@ -5,35 +5,23 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
-use std::collections::HashMap;
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use owo_colors::OwoColorize;
 
-use crate::{config::Config, editor, item::Item, storage, ui};
+use crate::{config::Config, item::Item, storage, ui, ui::InteractiveArgs};
 
 /// Arguments for the categories command
 pub struct CategoriesArgs {
-    pub interactive: bool,
-    pub no_interactive: bool,
+    pub interactive: InteractiveArgs,
 }
 
 /// Executes the categories command.
 pub fn execute(args: &CategoriesArgs) -> Result<()> {
     let config = Config::load()?;
 
-    // Collect all items (both open and archived)
-    let items: Vec<Item> = storage::walk_items(&config)
-        .chain(storage::walk_archived(&config))
-        .filter_map(|path| Item::load(&path).ok())
-        .collect();
-
-    // Count categories
-    let mut category_counts: HashMap<Option<String>, usize> = HashMap::new();
-    for item in &items {
-        let key = item.category().map(String::from);
-        *category_counts.entry(key).or_insert(0) += 1;
-    }
+    // Collect all items and count categories
+    let items = storage::load_all_items(&config);
+    let category_counts = ui::count_by(&items, |item: &Item| item.category().map(String::from));
 
     if category_counts.is_empty() {
         println!("{}", "No items found.".dimmed());
@@ -55,7 +43,7 @@ pub fn execute(args: &CategoriesArgs) -> Result<()> {
     print_table(&categories);
 
     // Check interactive mode
-    if !ui::should_run_interactive(args.interactive, args.no_interactive, &config) {
+    if !args.interactive.should_run(&config) {
         return Ok(());
     }
 
@@ -88,16 +76,13 @@ pub fn execute(args: &CategoriesArgs) -> Result<()> {
     ui::print_items_table_compact(&filtered);
 
     // Second interactive selection for items (check again since we printed a new table)
-    if !ui::should_run_interactive(args.interactive, args.no_interactive, &config) {
+    if !args.interactive.should_run(&config) {
         return Ok(());
     }
 
     let item_selection = ui::select_item_ref("Select an item to open", &filtered)?;
     let item = filtered[item_selection];
-    let path = item.path.as_ref().context("Item has no path")?;
-
-    println!("{}", config.relative_path(path).display());
-    editor::open(path, &config).context("Failed to open editor")?;
+    ui::open_item_in_editor(item, &config)?;
 
     Ok(())
 }

@@ -32,7 +32,12 @@ pub fn execute_close(id: &str) -> Result<()> {
     item.save(&path)?;
 
     // Move to archive
-    let new_path = storage::archive_item(&config, &path)?;
+    let (new_path, warnings) = storage::archive_item(&config, &path)?;
+
+    // Print any attachment move warnings
+    for warning in warnings {
+        eprintln!("{} {}", "warning:".yellow(), warning);
+    }
 
     println!(
         "{} Closed item: {}",
@@ -61,7 +66,12 @@ pub fn execute_reopen(id: &str) -> Result<()> {
     item.save(&path)?;
 
     // Move back from archive to original category (or root)
-    let new_path = storage::unarchive_item(&config, &path, item.category())?;
+    let (new_path, warnings) = storage::unarchive_item(&config, &path, item.category())?;
+
+    // Print any attachment move warnings
+    for warning in warnings {
+        eprintln!("{} {}", "warning:".yellow(), warning);
+    }
 
     println!(
         "{} Reopened item: {}",

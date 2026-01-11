@@ -9,7 +9,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, NewArgs, UpdateArgs};
+use qstack::commands::{self, InteractiveArgs, NewArgs, UpdateArgs};
 
 // =============================================================================
 // Special Characters and Unicode
@@ -26,8 +26,10 @@ fn test_special_characters_in_title() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed with special characters");
@@ -45,8 +47,10 @@ fn test_unicode_in_title() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed with unicode");
@@ -65,8 +69,10 @@ fn test_empty_title() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed with empty title");
@@ -85,8 +91,10 @@ fn test_very_long_title() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed with long title");
@@ -109,8 +117,10 @@ fn test_whitespace_only_title() {
         labels: vec![],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should create item (whitespace is trimmed to empty)
@@ -130,8 +140,10 @@ fn test_category_with_special_characters() {
         labels: vec![],
         category: Some("my-category_v2".to_string()),
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::new(args);
@@ -156,8 +168,10 @@ fn test_label_with_special_characters() {
         ],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");
@@ -180,8 +194,10 @@ fn test_duplicate_labels_ignored() {
         labels: vec!["bug".to_string(), "bug".to_string(), "bug".to_string()],
         category: None,
         attachments: vec![],
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     commands::new(args).expect("new should succeed");

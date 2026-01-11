@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, CategoriesArgs};
+use qstack::commands::{self, CategoriesArgs, InteractiveArgs};
 
 #[test]
 fn test_categories_empty_project() {
@@ -17,8 +17,10 @@ fn test_categories_empty_project() {
     commands::init().expect("init should succeed");
 
     let args = CategoriesArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::categories(&args);
@@ -37,8 +39,10 @@ fn test_categories_shows_unique_categories() {
     create_test_item(&env, "260104-DDD", "Task 4", "open", &[], None); // uncategorized
 
     let args = CategoriesArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::categories(&args);
@@ -67,8 +71,10 @@ fn test_categories_includes_archived_items() {
     .expect("move to archive");
 
     let args = CategoriesArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     // Should include categories from both open and archived items
@@ -83,8 +89,10 @@ fn test_categories_without_init() {
     // Don't init
 
     let args = CategoriesArgs {
-        interactive: false,
-        no_interactive: true,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
     };
 
     let result = commands::categories(&args);

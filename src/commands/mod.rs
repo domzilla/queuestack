@@ -28,9 +28,10 @@ pub use self::{
     completions::execute as completions,
     init::execute as init,
     labels::{execute as labels, LabelsArgs},
-    list::{execute as list, ListFilter, SortBy},
+    list::{execute as list, ListFilter, SortBy, StatusFilter},
     new::{execute as new, NewArgs},
     search::{execute as search, SearchArgs},
     setup::execute as setup,
     update::{execute as update, UpdateArgs},
 };
+pub use crate::ui::InteractiveArgs;
