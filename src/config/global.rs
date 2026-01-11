@@ -42,6 +42,12 @@ fn get_home_override() -> Option<PathBuf> {
 /// Global configuration file name
 const GLOBAL_CONFIG_FILE: &str = ".qstack";
 
+/// Default stack directory name
+const DEFAULT_STACK_DIR: &str = "qstack";
+
+/// Default archive directory name
+const DEFAULT_ARCHIVE_DIR: &str = "archive";
+
 /// Global configuration stored at ~/.qstack
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalConfig {
@@ -64,6 +70,14 @@ pub struct GlobalConfig {
     /// ID pattern for generating unique identifiers
     #[serde(default = "default_id_pattern", alias = "default_id_pattern")]
     pub id_pattern: String,
+
+    /// Directory name for storing items (default: "qstack")
+    #[serde(default)]
+    pub stack_dir: Option<String>,
+
+    /// Directory name for archived items (default: "archive")
+    #[serde(default)]
+    pub archive_dir: Option<String>,
 }
 
 impl Default for GlobalConfig {
@@ -74,6 +88,8 @@ impl Default for GlobalConfig {
             editor: None,
             auto_open: true,
             id_pattern: DEFAULT_PATTERN.to_string(),
+            stack_dir: None,
+            archive_dir: None,
         }
     }
 }
@@ -179,6 +195,16 @@ auto_open = {auto_open}
 #   "%y%j-%T%RR"     -> "26009-0A2BK4"   (day-of-year variant, 12 chars)
 #   "%T%RRRR"        -> "0A2BK4MN"       (compact, 8 chars)
 # id_pattern = "{id_pattern}"
+
+# Default directory name for storing items (relative to project root).
+# Used when initializing new projects. Can be overridden per-project.
+# Default: "qstack"
+# stack_dir = "qstack"
+
+# Default subdirectory name for archived (closed) items within the stack directory.
+# Used when initializing new projects. Can be overridden per-project.
+# Default: "archive"
+# archive_dir = "archive"
 "#,
             use_git_user = config.use_git_user,
             auto_open = config.auto_open,
@@ -187,6 +213,16 @@ auto_open = {auto_open}
 
         fs::write(path, content)
             .with_context(|| format!("Failed to write global config: {}", path.display()))
+    }
+
+    /// Returns the effective stack directory name
+    pub fn stack_dir(&self) -> &str {
+        self.stack_dir.as_deref().unwrap_or(DEFAULT_STACK_DIR)
+    }
+
+    /// Returns the effective archive directory name
+    pub fn archive_dir(&self) -> &str {
+        self.archive_dir.as_deref().unwrap_or(DEFAULT_ARCHIVE_DIR)
     }
 
     /// Resolves the effective user name, checking git config if enabled
@@ -258,6 +294,8 @@ mod tests {
         assert!(config.use_git_user);
         assert!(config.auto_open);
         assert_eq!(config.id_pattern, DEFAULT_PATTERN);
+        assert_eq!(config.stack_dir(), "qstack");
+        assert_eq!(config.archive_dir(), "archive");
     }
 
     #[test]

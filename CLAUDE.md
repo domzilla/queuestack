@@ -139,10 +139,24 @@ Uses Crockford's Base32 (0-9, A-Z excluding I,L,O,U) with pattern `%y%m%d-%T%RRR
 - Colored error output via `owo-colors`
 
 ## Config System
+Both global (`~/.qstack`) and project (`.qstack`) configs support the same 7 options.
+Project values override global values when set.
+
+| Option | Type | Default |
+|--------|------|---------|
+| `user_name` | `Option<String>` | None |
+| `use_git_user` | `bool` | `true` |
+| `editor` | `Option<String>` | None |
+| `auto_open` | `bool` | `true` |
+| `id_pattern` | `String` | `"%y%m%d-%T%RRR"` |
+| `stack_dir` | `String` | `"qstack"` |
+| `archive_dir` | `String` | `"archive"` |
+
 When adding a new config option:
-1. Add the field to `GlobalConfig` (`src/config/global.rs`) or `ProjectConfig` (`src/config/project.rs`)
-2. Update the `save_with_comments()` method to include the new option with documentation
-3. Config files are auto-generated with all options documented (commented out if unused)
+1. Add the field to both `GlobalConfig` and `ProjectConfig`
+2. Add resolution logic in `Config` (merged config) - project overrides global
+3. Update both `save_with_comments()` methods to include documentation
+4. Update test harness builders in `tests/harness.rs`
 
 ## Style & Conventions
 Follow the Rust style guide: `~/Agents/Style/rust-style-guide.md`

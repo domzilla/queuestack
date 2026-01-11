@@ -16,44 +16,38 @@ use serde::{Deserialize, Serialize};
 /// Project configuration file name
 pub const PROJECT_CONFIG_FILE: &str = ".qstack";
 
-/// Default stack directory name
-const DEFAULT_STACK_DIR: &str = "qstack";
-
-/// Default archive directory name
-const DEFAULT_ARCHIVE_DIR: &str = "archive";
-
 /// Project configuration stored at .qstack in project root
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// All fields are optional. When not set, values fall back to global config.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProjectConfig {
-    /// Directory name for storing items (default: "qstack")
-    #[serde(default = "default_stack_dir")]
-    pub stack_dir: String,
+    /// User's display name (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_name: Option<String>,
 
-    /// Directory name for archived items (default: "archive")
-    #[serde(default = "default_archive_dir")]
-    pub archive_dir: String,
+    /// Whether to use git config user.name as fallback (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub use_git_user: Option<bool>,
 
-    /// ID pattern override (uses global default if not set)
-    #[serde(default)]
+    /// Editor command (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub editor: Option<String>,
+
+    /// Whether to auto-open editor (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_open: Option<bool>,
+
+    /// ID pattern override (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id_pattern: Option<String>,
-}
 
-impl Default for ProjectConfig {
-    fn default() -> Self {
-        Self {
-            stack_dir: DEFAULT_STACK_DIR.to_string(),
-            archive_dir: DEFAULT_ARCHIVE_DIR.to_string(),
-            id_pattern: None,
-        }
-    }
-}
+    /// Directory name for storing items (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack_dir: Option<String>,
 
-fn default_stack_dir() -> String {
-    DEFAULT_STACK_DIR.to_string()
-}
-
-fn default_archive_dir() -> String {
-    DEFAULT_ARCHIVE_DIR.to_string()
+    /// Directory name for archived items (overrides global)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archive_dir: Option<String>,
 }
 
 impl ProjectConfig {
@@ -101,26 +95,41 @@ impl ProjectConfig {
             .with_context(|| format!("Failed to write project config: {}", path.display()))
     }
 
-    /// Saves project config with detailed comments for all options
-    pub fn save_with_comments(&self, project_root: &Path) -> Result<()> {
+    /// Saves project config with detailed comments for all options.
+    ///
+    /// The `stack_dir` and `archive_dir` parameters are written as explicit values,
+    /// while all other options are commented out (falling back to global config).
+    pub fn save_with_comments(
+        project_root: &Path,
+        stack_dir: &str,
+        archive_dir: &str,
+    ) -> Result<()> {
         let path = Self::path(project_root);
 
         let content = format!(
             r#"# qstack Project Configuration
 # This file configures qstack for this specific project.
+# All settings here override the global config (~/.qstack).
 # Location: <project-root>/.qstack
 
-# Directory name for storing items (relative to project root).
-# Default: "qstack"
-stack_dir = "{stack_dir}"
+# User's display name for item authorship.
+# If not set, falls back to global config.
+# user_name = "Your Name"
 
-# Subdirectory name for archived (closed) items within the stack directory.
-# Default: "archive"
-archive_dir = "{archive_dir}"
+# Whether to use `git config user.name` as a fallback.
+# If not set, falls back to global config.
+# use_git_user = true
 
-# Project-specific ID pattern override.
-# If not set, uses the pattern from global config (~/.qstack).
-# See global config for available tokens.
+# Editor command to open when creating new items.
+# If not set, falls back to global config.
+# editor = "nvim"
+
+# Whether to automatically open the editor when creating a new item.
+# If not set, falls back to global config.
+# auto_open = true
+
+# Pattern for generating unique item IDs.
+# If not set, falls back to global config.
 #
 # Available tokens:
 #   %y  - Year (2 digits, e.g., "26" for 2026)
@@ -132,23 +141,17 @@ archive_dir = "{archive_dir}"
 #   %%  - Literal percent sign
 #
 # id_pattern = "%y%m%d-%T%RRR"
-"#,
-            stack_dir = self.stack_dir,
-            archive_dir = self.archive_dir,
+
+# Directory name for storing items (relative to project root).
+stack_dir = "{stack_dir}"
+
+# Subdirectory name for archived (closed) items within the stack directory.
+archive_dir = "{archive_dir}"
+"#
         );
 
         fs::write(&path, content)
             .with_context(|| format!("Failed to write project config: {}", path.display()))
-    }
-
-    /// Returns the full path to the stack directory
-    pub fn stack_path(&self, project_root: &Path) -> PathBuf {
-        project_root.join(&self.stack_dir)
-    }
-
-    /// Returns the full path to the archive directory
-    pub fn archive_path(&self, project_root: &Path) -> PathBuf {
-        self.stack_path(project_root).join(&self.archive_dir)
     }
 }
 
@@ -159,9 +162,13 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = ProjectConfig::default();
-        assert_eq!(config.stack_dir, DEFAULT_STACK_DIR);
-        assert_eq!(config.archive_dir, DEFAULT_ARCHIVE_DIR);
+        assert!(config.user_name.is_none());
+        assert!(config.use_git_user.is_none());
+        assert!(config.editor.is_none());
+        assert!(config.auto_open.is_none());
         assert!(config.id_pattern.is_none());
+        assert!(config.stack_dir.is_none());
+        assert!(config.archive_dir.is_none());
     }
 
     #[test]
@@ -170,22 +177,23 @@ mod tests {
 stack_dir = "issues"
 archive_dir = "done"
 id_pattern = "%y%j-%RRR"
+user_name = "Test User"
+auto_open = false
 "#;
         let config: ProjectConfig = toml::from_str(toml).unwrap();
-        assert_eq!(config.stack_dir, "issues");
-        assert_eq!(config.archive_dir, "done");
+        assert_eq!(config.stack_dir, Some("issues".to_string()));
+        assert_eq!(config.archive_dir, Some("done".to_string()));
         assert_eq!(config.id_pattern, Some("%y%j-%RRR".to_string()));
+        assert_eq!(config.user_name, Some("Test User".to_string()));
+        assert_eq!(config.auto_open, Some(false));
     }
 
     #[test]
-    fn test_paths() {
-        let config = ProjectConfig::default();
-        let root = PathBuf::from("/project");
-
-        assert_eq!(config.stack_path(&root), PathBuf::from("/project/qstack"));
-        assert_eq!(
-            config.archive_path(&root),
-            PathBuf::from("/project/qstack/archive")
-        );
+    fn test_parse_minimal_config() {
+        // Empty config should work - all fields are optional
+        let toml = "";
+        let config: ProjectConfig = toml::from_str(toml).unwrap();
+        assert!(config.stack_dir.is_none());
+        assert!(config.archive_dir.is_none());
     }
 }

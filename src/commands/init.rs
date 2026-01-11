@@ -25,17 +25,21 @@ pub fn execute() -> Result<()> {
         );
     }
 
+    // Get directory names from global config (with defaults)
+    let stack_dir = config.stack_dir();
+    let archive_dir = config.archive_dir();
+
     // Create project config with comments
-    let project_config = ProjectConfig::default();
-    project_config.save_with_comments(&config.project_root)?;
+    // stack_dir and archive_dir are set explicitly, other options are commented out
+    ProjectConfig::save_with_comments(&config.project_root, stack_dir, archive_dir)?;
 
     // Create stack directory
-    let stack_path = project_config.stack_path(&config.project_root);
+    let stack_path = config.project_root.join(stack_dir);
     fs::create_dir_all(&stack_path)
         .with_context(|| format!("Failed to create stack directory: {}", stack_path.display()))?;
 
     // Create archive directory
-    let archive_path = project_config.archive_path(&config.project_root);
+    let archive_path = stack_path.join(archive_dir);
     fs::create_dir_all(&archive_path).with_context(|| {
         format!(
             "Failed to create archive directory: {}",

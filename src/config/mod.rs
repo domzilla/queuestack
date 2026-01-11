@@ -1,6 +1,7 @@
 //! # Configuration
 //!
 //! Merged configuration system combining global (~/.qstack) and project (.qstack) settings.
+//! Project settings override global settings when specified.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
@@ -8,7 +9,10 @@
 pub mod global;
 pub mod project;
 
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use anyhow::Result;
 
@@ -62,6 +66,10 @@ impl Config {
         })
     }
 
+    // -------------------------------------------------------------------------
+    // Resolution methods: project overrides global
+    // -------------------------------------------------------------------------
+
     /// Returns the effective ID pattern (project overrides global)
     pub fn id_pattern(&self) -> &str {
         self.project
@@ -70,20 +78,63 @@ impl Config {
             .unwrap_or(&self.global.id_pattern)
     }
 
-    /// Returns the effective user name
+    /// Returns the effective stack directory name (project overrides global)
+    pub fn stack_dir(&self) -> &str {
+        self.project
+            .stack_dir
+            .as_deref()
+            .unwrap_or_else(|| self.global.stack_dir())
+    }
+
+    /// Returns the effective archive directory name (project overrides global)
+    pub fn archive_dir(&self) -> &str {
+        self.project
+            .archive_dir
+            .as_deref()
+            .unwrap_or_else(|| self.global.archive_dir())
+    }
+
+    /// Returns the effective `use_git_user` setting (project overrides global)
+    pub fn use_git_user(&self) -> bool {
+        self.project
+            .use_git_user
+            .unwrap_or(self.global.use_git_user)
+    }
+
+    /// Whether to auto-open editor (project overrides global)
+    pub fn auto_open(&self) -> bool {
+        self.project.auto_open.unwrap_or(self.global.auto_open)
+    }
+
+    /// Returns the effective user name (project overrides global)
     pub fn user_name(&self) -> Option<String> {
-        self.global.resolve_user_name()
+        // First check project-level user_name
+        if let Some(ref name) = self.project.user_name {
+            return Some(name.clone());
+        }
+
+        // Then check global user_name
+        if let Some(ref name) = self.global.user_name {
+            return Some(name.clone());
+        }
+
+        // Then try git config if enabled
+        if self.use_git_user() {
+            return git_user_name();
+        }
+
+        None
     }
 
     /// Returns the effective user name, prompting if not available.
     /// Falls back to: config `user_name` -> git `user.name` -> prompt -> error
     pub fn user_name_or_prompt(&mut self) -> Result<String> {
         // Try existing sources first
-        if let Some(name) = self.global.resolve_user_name() {
+        if let Some(name) = self.user_name() {
             return Ok(name);
         }
 
-        // Prompt user for name
+        // Prompt user for name (saves to global config)
         if let Some(name) = self.global.prompt_and_save_user_name()? {
             return Ok(name);
         }
@@ -93,28 +144,28 @@ impl Config {
         )
     }
 
-    /// Returns the effective editor command
+    /// Returns the effective editor command (project overrides global)
     pub fn editor(&self) -> Option<String> {
-        self.global.editor.clone().or_else(|| {
-            std::env::var("VISUAL")
-                .ok()
-                .or_else(|| std::env::var("EDITOR").ok())
-        })
+        self.project
+            .editor
+            .clone()
+            .or_else(|| self.global.editor.clone())
+            .or_else(|| std::env::var("VISUAL").ok())
+            .or_else(|| std::env::var("EDITOR").ok())
     }
 
-    /// Whether to auto-open editor
-    pub const fn auto_open(&self) -> bool {
-        self.global.auto_open
-    }
+    // -------------------------------------------------------------------------
+    // Path helpers
+    // -------------------------------------------------------------------------
 
     /// Returns the stack directory path
     pub fn stack_path(&self) -> PathBuf {
-        self.project.stack_path(&self.project_root)
+        self.project_root.join(self.stack_dir())
     }
 
     /// Returns the archive directory path
     pub fn archive_path(&self) -> PathBuf {
-        self.project.archive_path(&self.project_root)
+        self.stack_path().join(self.archive_dir())
     }
 
     /// Returns path to a category subdirectory within the stack
@@ -127,6 +178,17 @@ impl Config {
         path.strip_prefix(&self.project_root)
             .map_or_else(|_| path.to_path_buf(), Path::to_path_buf)
     }
+}
+
+/// Gets the user name from git config
+fn git_user_name() -> Option<String> {
+    Command::new("git")
+        .args(["config", "user.name"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_string())
+        .filter(|name| !name.is_empty())
 }
 
 /// Default ID pattern constant re-export for convenience

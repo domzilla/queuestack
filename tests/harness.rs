@@ -188,6 +188,8 @@ pub struct GlobalConfigBuilder {
     editor: Option<String>,
     auto_open: bool,
     id_pattern: String,
+    stack_dir: Option<String>,
+    archive_dir: Option<String>,
 }
 
 impl Default for GlobalConfigBuilder {
@@ -198,6 +200,8 @@ impl Default for GlobalConfigBuilder {
             editor: Some("true".to_string()), // no-op editor
             auto_open: true,
             id_pattern: "%y%m%d-%T%RRR".to_string(),
+            stack_dir: None,
+            archive_dir: None,
         }
     }
 }
@@ -232,6 +236,16 @@ impl GlobalConfigBuilder {
         self
     }
 
+    pub fn stack_dir(mut self, dir: impl Into<String>) -> Self {
+        self.stack_dir = Some(dir.into());
+        self
+    }
+
+    pub fn archive_dir(mut self, dir: impl Into<String>) -> Self {
+        self.archive_dir = Some(dir.into());
+        self
+    }
+
     pub fn build(&self) -> String {
         let mut lines = Vec::new();
 
@@ -248,23 +262,41 @@ impl GlobalConfigBuilder {
         lines.push(format!("auto_open = {}", self.auto_open));
         lines.push(format!("id_pattern = \"{}\"", self.id_pattern));
 
+        if let Some(ref dir) = self.stack_dir {
+            lines.push(format!("stack_dir = \"{}\"", dir));
+        }
+
+        if let Some(ref dir) = self.archive_dir {
+            lines.push(format!("archive_dir = \"{}\"", dir));
+        }
+
         lines.join("\n")
     }
 }
 
 /// Builder for creating project configurations.
+///
+/// All fields are optional - project config values override global config.
 pub struct ProjectConfigBuilder {
-    stack_dir: String,
-    archive_dir: String,
+    user_name: Option<String>,
+    use_git_user: Option<bool>,
+    editor: Option<String>,
+    auto_open: Option<bool>,
     id_pattern: Option<String>,
+    stack_dir: Option<String>,
+    archive_dir: Option<String>,
 }
 
 impl Default for ProjectConfigBuilder {
     fn default() -> Self {
         Self {
-            stack_dir: "qstack".to_string(),
-            archive_dir: "archive".to_string(),
+            user_name: None,
+            use_git_user: None,
+            editor: None,
+            auto_open: None,
             id_pattern: None,
+            stack_dir: Some("qstack".to_string()),
+            archive_dir: Some("archive".to_string()),
         }
     }
 }
@@ -274,13 +306,23 @@ impl ProjectConfigBuilder {
         Self::default()
     }
 
-    pub fn stack_dir(mut self, dir: impl Into<String>) -> Self {
-        self.stack_dir = dir.into();
+    pub fn user_name(mut self, name: impl Into<String>) -> Self {
+        self.user_name = Some(name.into());
         self
     }
 
-    pub fn archive_dir(mut self, dir: impl Into<String>) -> Self {
-        self.archive_dir = dir.into();
+    pub fn use_git_user(mut self, use_git: bool) -> Self {
+        self.use_git_user = Some(use_git);
+        self
+    }
+
+    pub fn editor(mut self, editor: impl Into<String>) -> Self {
+        self.editor = Some(editor.into());
+        self
+    }
+
+    pub fn auto_open(mut self, auto_open: bool) -> Self {
+        self.auto_open = Some(auto_open);
         self
     }
 
@@ -289,14 +331,45 @@ impl ProjectConfigBuilder {
         self
     }
 
+    pub fn stack_dir(mut self, dir: impl Into<String>) -> Self {
+        self.stack_dir = Some(dir.into());
+        self
+    }
+
+    pub fn archive_dir(mut self, dir: impl Into<String>) -> Self {
+        self.archive_dir = Some(dir.into());
+        self
+    }
+
     pub fn build(&self) -> String {
         let mut lines = Vec::new();
 
-        lines.push(format!("stack_dir = \"{}\"", self.stack_dir));
-        lines.push(format!("archive_dir = \"{}\"", self.archive_dir));
+        if let Some(ref name) = self.user_name {
+            lines.push(format!("user_name = \"{}\"", name));
+        }
+
+        if let Some(use_git) = self.use_git_user {
+            lines.push(format!("use_git_user = {}", use_git));
+        }
+
+        if let Some(ref editor) = self.editor {
+            lines.push(format!("editor = \"{}\"", editor));
+        }
+
+        if let Some(auto_open) = self.auto_open {
+            lines.push(format!("auto_open = {}", auto_open));
+        }
 
         if let Some(ref pattern) = self.id_pattern {
             lines.push(format!("id_pattern = \"{}\"", pattern));
+        }
+
+        if let Some(ref dir) = self.stack_dir {
+            lines.push(format!("stack_dir = \"{}\"", dir));
+        }
+
+        if let Some(ref dir) = self.archive_dir {
+            lines.push(format!("archive_dir = \"{}\"", dir));
         }
 
         lines.join("\n")
