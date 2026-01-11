@@ -238,7 +238,8 @@ impl NewItemWizard<'_> {
             KeyCode::Enter => {
                 let content = self.attachment_input.content().trim().to_string();
                 if !content.is_empty() {
-                    self.attachments.push(content);
+                    let paths = parse_shell_escaped_paths(&content);
+                    self.attachments.extend(paths);
                     self.attachment_input = TextInput::new("Add attachment (path or URL)");
                 }
                 None
@@ -596,7 +597,7 @@ impl NewItemWizard<'_> {
         let help_text = match self.step {
             WizardStep::Title => "Tab: Next  Esc: Cancel",
             WizardStep::Content => "Tab: Next  Shift+Tab: Back  Esc: Cancel",
-            WizardStep::Attachments => "Enter: Add  Backspace: Remove last  Tab: Next  Esc: Cancel",
+            WizardStep::Attachments => "Enter: Add (multiple paths separated by space)  Backspace: Remove last  Tab: Next  Esc: Cancel",
             WizardStep::Category => {
                 if self.category_input_mode {
                     "Enter: Confirm  Esc: Cancel input"
@@ -620,5 +621,104 @@ impl NewItemWizard<'_> {
         );
 
         frame.render_widget(help, area);
+    }
+}
+
+/// Parse a string containing shell-escaped paths separated by unescaped spaces.
+///
+/// Paths can contain escaped spaces (e.g., `/path/to\ file.png`) and multiple
+/// paths are separated by unescaped spaces. Returns individual paths with
+/// escape sequences removed.
+fn parse_shell_escaped_paths(input: &str) -> Vec<String> {
+    let mut paths = Vec::new();
+    let mut current = String::new();
+    let mut chars = input.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\\' => {
+                // Check if this is an escape sequence
+                if let Some(&next) = chars.peek() {
+                    // Escaped character - consume it and add the literal character
+                    chars.next();
+                    current.push(next);
+                } else {
+                    // Trailing backslash - keep it
+                    current.push(ch);
+                }
+            }
+            ' ' => {
+                // Unescaped space - this is a separator
+                let trimmed = current.trim().to_string();
+                if !trimmed.is_empty() {
+                    paths.push(trimmed);
+                }
+                current.clear();
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+
+    // Don't forget the last path
+    let trimmed = current.trim().to_string();
+    if !trimmed.is_empty() {
+        paths.push(trimmed);
+    }
+
+    paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_shell_escaped_paths_single() {
+        let input = "/path/to/file.png";
+        let result = parse_shell_escaped_paths(input);
+        assert_eq!(result, vec!["/path/to/file.png"]);
+    }
+
+    #[test]
+    fn test_parse_shell_escaped_paths_with_escaped_spaces() {
+        let input = r"/path/to\ file.png";
+        let result = parse_shell_escaped_paths(input);
+        assert_eq!(result, vec!["/path/to file.png"]);
+    }
+
+    #[test]
+    fn test_parse_shell_escaped_paths_multiple() {
+        let input = "/path/one.png /path/two.png";
+        let result = parse_shell_escaped_paths(input);
+        assert_eq!(result, vec!["/path/one.png", "/path/two.png"]);
+    }
+
+    #[test]
+    fn test_parse_shell_escaped_paths_multiple_with_escaped_spaces() {
+        let input = r"/Users/dom/Desktop/Screenshot\ 2026-01-11\ at\ 11.58.43.png /Users/dom/Desktop/Screenshot\ 2026-01-11\ at\ 11.58.52.png";
+        let result = parse_shell_escaped_paths(input);
+        assert_eq!(
+            result,
+            vec![
+                "/Users/dom/Desktop/Screenshot 2026-01-11 at 11.58.43.png",
+                "/Users/dom/Desktop/Screenshot 2026-01-11 at 11.58.52.png"
+            ]
+        );
+    }
+
+    #[test]
+    fn test_parse_shell_escaped_paths_empty() {
+        let input = "";
+        let result = parse_shell_escaped_paths(input);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_shell_escaped_paths_only_spaces() {
+        let input = "   ";
+        let result = parse_shell_escaped_paths(input);
+        assert!(result.is_empty());
     }
 }
