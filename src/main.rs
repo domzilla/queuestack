@@ -148,23 +148,28 @@ The author is determined from (in order):\n  \
         title: String,
 
         /// Labels/tags for the item (multiple values allowed)
-        #[arg(short, long, num_args = 1..)]
+        #[arg(short, long, num_args = 1.., help = "Labels/tags for the item")]
         label: Vec<String>,
 
         /// Category subdirectory for the item
-        #[arg(short, long)]
+        #[arg(short, long, help = "Category subdirectory for the item")]
         category: Option<String>,
 
         /// Files or URLs to attach (multiple values allowed)
-        #[arg(short, long, num_args = 1..)]
+        #[arg(short, long, num_args = 1.., help = "Files or URLs to attach")]
         attachment: Vec<String>,
 
         /// Force interactive mode (open editor)
-        #[arg(short = 'i', long, conflicts_with = "no_interactive")]
+        #[arg(
+            short = 'i',
+            long,
+            conflicts_with = "no_interactive",
+            help = "Force editor to open"
+        )]
         interactive: bool,
 
         /// Force non-interactive mode (don't open editor)
-        #[arg(long)]
+        #[arg(long, help = "Skip opening editor")]
         no_interactive: bool,
     },
 
@@ -213,11 +218,16 @@ Use filters to narrow down results.",
         sort: SortBy,
 
         /// Force interactive mode (show selector)
-        #[arg(short = 'i', long, conflicts_with = "no_interactive")]
+        #[arg(
+            short = 'i',
+            long,
+            conflicts_with = "no_interactive",
+            help = "Force interactive selection"
+        )]
         interactive: bool,
 
         /// Force non-interactive mode (just show table)
-        #[arg(long)]
+        #[arg(long, help = "Just display the table")]
         no_interactive: bool,
     },
 
@@ -251,11 +261,16 @@ Use --full-text to also search within the markdown body content.",
         full_text: bool,
 
         /// Force interactive mode (show selector)
-        #[arg(short = 'i', long, conflicts_with = "no_interactive")]
+        #[arg(
+            short = 'i',
+            long,
+            conflicts_with = "no_interactive",
+            help = "Force interactive selection"
+        )]
         interactive: bool,
 
         /// Force non-interactive mode (just list matching items)
-        #[arg(long)]
+        #[arg(long, help = "Just list matching items")]
         no_interactive: bool,
 
         /// Search in closed/archived items
@@ -370,11 +385,16 @@ just display the table.",
     )]
     Labels {
         /// Force interactive mode (show selector)
-        #[arg(short = 'i', long, conflicts_with = "no_interactive")]
+        #[arg(
+            short = 'i',
+            long,
+            conflicts_with = "no_interactive",
+            help = "Force interactive selection"
+        )]
         interactive: bool,
 
         /// Force non-interactive mode (just show table)
-        #[arg(long)]
+        #[arg(long, help = "Just display the table")]
         no_interactive: bool,
     },
 
@@ -393,11 +413,16 @@ an item to open. Use -i to force interactive mode, or --no-interactive to just d
     )]
     Categories {
         /// Force interactive mode (show selector)
-        #[arg(short = 'i', long, conflicts_with = "no_interactive")]
+        #[arg(
+            short = 'i',
+            long,
+            conflicts_with = "no_interactive",
+            help = "Force interactive selection"
+        )]
         interactive: bool,
 
         /// Force non-interactive mode (just show table)
-        #[arg(long)]
+        #[arg(long, help = "Just display the table")]
         no_interactive: bool,
     },
 
@@ -467,44 +492,53 @@ enum AttachmentsAction {
     /// List attachments for an item
     #[command(
         after_help = concat!(
+            h!("Example:"), "\n  ",
+            c!("qstack attachments list --id "), a!("260109"), "\n\n",
             h!("Output:"), " Table with index, type (file/url), and attachment path or URL."
         )
     )]
     List {
         /// Item ID (partial match supported)
-        #[arg(long, required = true)]
+        #[arg(long, required = true, help = "Item ID (partial match supported)")]
         id: String,
     },
 
     /// Add file or URL attachments to an item
     #[command(
         after_help = concat!(
+            h!("Examples:"), "\n  ",
+            c!("qstack attachments add --id "), a!("260109"), " ", a!("screenshot.png"), "\n  ",
+            c!("qstack attachments add --id "), a!("260109"), " ", a!("file1.txt file2.txt"), "\n  ",
+            c!("qstack attachments add --id "), a!("260109"), " ", a!("https://github.com/issue/42"), "\n\n",
             h!("Note:"), " Files are copied to the item directory. URLs are stored as references."
         )
     )]
     Add {
         /// Item ID (partial match supported)
-        #[arg(long, required = true)]
+        #[arg(long, required = true, help = "Item ID (partial match supported)")]
         id: String,
 
         /// Files or URLs to attach
-        #[arg(required = true)]
+        #[arg(required = true, help = "Files or URLs to attach")]
         sources: Vec<String>,
     },
 
     /// Remove attachments from an item by index
     #[command(
         after_help = concat!(
+            h!("Examples:"), "\n  ",
+            c!("qstack attachments remove --id "), a!("260109"), " ", a!("1"), "\n  ",
+            c!("qstack attachments remove --id "), a!("260109"), " ", a!("1 2 3"), "    Remove multiple\n\n",
             h!("Note:"), " Use ", c!("qstack attachments list --id <ID>"), " to see indices."
         )
     )]
     Remove {
         /// Item ID (partial match supported)
-        #[arg(long, required = true)]
+        #[arg(long, required = true, help = "Item ID (partial match supported)")]
         id: String,
 
         /// Attachment indices to remove (1-based)
-        #[arg(required = true)]
+        #[arg(required = true, help = "Attachment indices to remove (1-based)")]
         indices: Vec<usize>,
     },
 }
