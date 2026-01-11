@@ -7,20 +7,24 @@
 
 pub mod categories;
 pub mod close;
+pub mod completions;
 pub mod init;
 pub mod labels;
 pub mod list;
 pub mod new;
 pub mod search;
+pub mod setup;
 pub mod update;
 
 pub use self::{
     categories::{execute as categories, CategoriesArgs},
     close::{execute_close, execute_reopen},
+    completions::execute as completions,
     init::execute as init,
     labels::{execute as labels, LabelsArgs},
     list::{execute as list, ListFilter, SortBy},
     new::{execute as new, NewArgs},
     search::{execute as search, SearchArgs},
+    setup::execute as setup,
     update::{execute as update, UpdateArgs},
 };

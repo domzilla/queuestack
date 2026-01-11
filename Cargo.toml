@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 clap = { version = "4", features = ["derive", "color"] }
+clap_complete = "4"
 serde = { version = "1", features = ["derive"] }
 serde_yml = "0.0"
 toml = "0.8"

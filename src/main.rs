@@ -10,6 +10,8 @@ use clap::builder::{styling::AnsiColor, Styles};
 use clap::{Parser, Subcommand};
 use owo_colors::OwoColorize;
 
+use clap::CommandFactory;
+use clap_complete::Shell;
 use qstack::commands::{
     self, CategoriesArgs, LabelsArgs, ListFilter, NewArgs, SearchArgs, SortBy, UpdateArgs,
 };
@@ -389,6 +391,47 @@ an item to open. Use -i to force interactive mode, or --no-interactive to just d
         #[arg(long)]
         no_interactive: bool,
     },
+
+    /// One-time setup: create global config and install shell completions
+    #[command(
+        long_about = "One-time setup for qstack.\n\n\
+This command helps you get started with qstack by:\n  \
+1. Creating the global configuration file (~/.qstack) if it doesn't exist\n  \
+2. Detecting your shell from $SHELL and installing tab completions\n\n\
+Run this once after installing qstack to enable tab completion for commands and arguments.\n\n\
+The setup is idempotent - running it multiple times is safe and will just overwrite \
+the completion script with the latest version.",
+        after_help = concat!(
+            h!("Examples:"), "\n  ",
+            c!("qstack setup"), "           Run one-time setup\n\n",
+            h!("Supported shells:"), " zsh, bash, fish, elvish, powershell\n\n",
+            h!("Note:"), " If shell detection fails, use ", c!("qstack completions <shell>"), " manually."
+        )
+    )]
+    Setup,
+
+    /// Generate shell completion scripts
+    #[command(
+        long_about = "Generate shell completion scripts for various shells.\n\n\
+Outputs the completion script to stdout. Redirect to a file or source directly \
+in your shell configuration.\n\n\
+For automatic installation, use 'qstack setup' instead.",
+        after_help = concat!(
+            h!("Examples:"), "\n  ",
+            c!("qstack completions zsh"), " > ~/.zfunc/_qstack\n  ",
+            c!("qstack completions bash"), " > ~/.local/share/bash-completion/completions/qstack\n  ",
+            c!("qstack completions fish"), " > ~/.config/fish/completions/qstack.fish\n\n",
+            h!("For zsh:"), " Add to ~/.zshrc:\n  ",
+            "fpath=(~/.zfunc $fpath) && autoload -Uz compinit && compinit\n\n",
+            h!("For bash:"), " Add to ~/.bashrc:\n  ",
+            "source ~/.local/share/bash-completion/completions/qstack"
+        )
+    )]
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 fn main() {
@@ -483,5 +526,15 @@ fn run() -> Result<()> {
             interactive,
             no_interactive,
         }),
+
+        Commands::Setup => {
+            let mut cmd = Cli::command();
+            commands::setup(&mut cmd)
+        }
+
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            commands::completions(shell, &mut cmd)
+        }
     }
 }

@@ -55,7 +55,9 @@ qstack/
 │       ├── update.rs       # qstack update --id <id>
 │       ├── close.rs        # qstack close/reopen
 │       ├── labels.rs       # qstack labels
-│       └── categories.rs   # qstack categories
+│       ├── categories.rs   # qstack categories
+│       ├── setup.rs        # qstack setup (one-time setup)
+│       └── completions.rs  # qstack completions <shell>
 ├── scripts/
 │   └── install-hooks.sh    # Git hooks installer
 ├── tests/
@@ -75,7 +77,7 @@ qstack/
 - Config schema: `src/config/*.rs`
 
 ## Dependencies
-- `clap` - CLI argument parsing (derive)
+- `clap` + `clap_complete` - CLI argument parsing (derive) + shell completions
 - `serde` + `serde_yml` - YAML frontmatter serialization
 - `toml` - Config file parsing
 - `chrono` - Date/time handling
@@ -101,6 +103,8 @@ qstack close --id 260109                       # Archive item
 qstack reopen --id 260109                      # Restore item
 qstack labels                                  # List all labels (interactive selection)
 qstack categories                              # List all categories (interactive selection)
+qstack setup                                   # One-time setup (config + completions)
+qstack completions zsh                         # Generate shell completions
 ```
 
 ## Storage Layout
