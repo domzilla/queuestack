@@ -448,3 +448,159 @@ pub fn create_test_item(
     fs::write(&path, content).expect("Failed to write item file");
     path
 }
+
+// =============================================================================
+// Attachment Test Helpers
+// =============================================================================
+
+impl TestEnv {
+    /// Creates a test file that can be attached.
+    pub fn create_test_file(&self, name: &str, content: &str) -> PathBuf {
+        let path = self.project_dir.path().join(name);
+        fs::write(&path, content).expect("Failed to write test file");
+        path
+    }
+
+    /// Lists attachment files for an item by ID prefix (excludes archive).
+    pub fn list_attachment_files(&self, item_id: &str) -> Vec<PathBuf> {
+        let pattern = format!("{item_id}-Attachment-");
+        let archive = self.archive_path();
+
+        walkdir::WalkDir::new(self.stack_path())
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| !e.path().starts_with(&archive))
+            .map(|e| e.into_path())
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|name| name.starts_with(&pattern))
+            })
+            .collect()
+    }
+
+    /// Checks if an attachment file exists in the given directory.
+    pub fn attachment_exists(&self, item_path: &Path, attachment_name: &str) -> bool {
+        item_path
+            .parent()
+            .map(|dir| dir.join(attachment_name).exists())
+            .unwrap_or(false)
+    }
+
+    /// Lists attachment files in the archive directory for an item ID.
+    pub fn list_archive_attachment_files(&self, item_id: &str) -> Vec<PathBuf> {
+        let pattern = format!("{item_id}-Attachment-");
+
+        walkdir::WalkDir::new(self.archive_path())
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .map(|e| e.into_path())
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|name| name.starts_with(&pattern))
+            })
+            .collect()
+    }
+}
+
+/// Creates a test item file with attachments.
+pub fn make_item_content_with_attachments(
+    id: &str,
+    title: &str,
+    status: &str,
+    labels: &[&str],
+    category: Option<&str>,
+    attachments: &[&str],
+) -> String {
+    let labels_yaml = if labels.is_empty() {
+        "[]".to_string()
+    } else {
+        format!(
+            "\n{}",
+            labels
+                .iter()
+                .map(|l| format!("  - {}", l))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    };
+
+    let category_yaml = match category {
+        Some(cat) => format!("category: {cat}"),
+        None => "category: ~".to_string(),
+    };
+
+    let attachments_yaml = if attachments.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "attachments:\n{}",
+            attachments
+                .iter()
+                .map(|a| format!("  - {}", a))
+                .collect::<Vec<_>>()
+                .join("\n")
+        )
+    };
+
+    format!(
+        r#"---
+id: {id}
+title: {title}
+author: Test User
+created_at: 2026-01-09T12:00:00Z
+status: {status}
+labels: {labels_yaml}
+{category_yaml}
+{attachments_yaml}
+---
+
+Test item body.
+"#
+    )
+}
+
+/// Creates a test item with pre-existing attachments.
+pub fn create_test_item_with_attachments(
+    env: &TestEnv,
+    id: &str,
+    title: &str,
+    status: &str,
+    attachments: &[&str],
+    category: Option<&str>,
+) -> PathBuf {
+    let slug = title
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>();
+
+    let filename = format!("{}-{}.md", id, slug);
+    let content = make_item_content_with_attachments(id, title, status, &[], category, attachments);
+
+    let dir = if let Some(cat) = category {
+        env.stack_path().join(cat)
+    } else {
+        env.stack_path()
+    };
+
+    fs::create_dir_all(&dir).expect("Failed to create directory");
+
+    // Create the item file
+    let path = dir.join(filename);
+    fs::write(&path, content).expect("Failed to write item file");
+
+    // Create the attachment files
+    for attachment in attachments {
+        if !attachment.starts_with("http://") && !attachment.starts_with("https://") {
+            let attachment_path = dir.join(attachment);
+            fs::write(&attachment_path, "test attachment content")
+                .expect("Failed to write attachment");
+        }
+    }
+
+    path
+}

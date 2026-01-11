@@ -24,4 +24,4 @@ pub mod item;
 pub mod storage;
 
 pub use config::{set_home_override, Config};
-pub use item::{Frontmatter, Item, Status};
+pub use item::{is_url, Frontmatter, Item, Status};

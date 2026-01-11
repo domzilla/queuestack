@@ -5,6 +5,8 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
+pub mod attach;
+pub mod attachments;
 pub mod categories;
 pub mod close;
 pub mod completions;
@@ -17,6 +19,10 @@ pub mod setup;
 pub mod update;
 
 pub use self::{
+    attach::{
+        execute_add as attach_add, execute_remove as attach_remove, AttachAddArgs, AttachRemoveArgs,
+    },
+    attachments::{execute as attachments, AttachmentsArgs},
     categories::{execute as categories, CategoriesArgs},
     close::{execute_close, execute_reopen},
     completions::execute as completions,

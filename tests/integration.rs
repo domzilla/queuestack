@@ -7,10 +7,13 @@
 
 mod harness;
 
-use harness::{create_test_item, GlobalConfigBuilder, ProjectConfigBuilder, TestEnv};
+use harness::{
+    create_test_item, create_test_item_with_attachments, GlobalConfigBuilder, ProjectConfigBuilder,
+    TestEnv,
+};
 use qstack::commands::{
-    self, execute_close, execute_reopen, CategoriesArgs, LabelsArgs, ListFilter, NewArgs,
-    SearchArgs, SortBy, UpdateArgs,
+    self, execute_close, execute_reopen, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs,
+    CategoriesArgs, LabelsArgs, ListFilter, NewArgs, SearchArgs, SortBy, UpdateArgs,
 };
 
 // =============================================================================
@@ -83,6 +86,7 @@ fn test_new_creates_item() {
         title: "Test Item".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -111,6 +115,7 @@ fn test_new_with_labels() {
         title: "Bug Report".to_string(),
         labels: vec!["bug".to_string(), "urgent".to_string()],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -133,6 +138,7 @@ fn test_new_with_category() {
         title: "Bug in Login".to_string(),
         labels: vec![],
         category: Some("bugs".to_string()),
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -153,6 +159,7 @@ fn test_new_uses_custom_id_pattern() {
         title: "Custom ID Item".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -181,6 +188,7 @@ fn test_new_project_id_pattern_overrides_global() {
         title: "Project Pattern".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -628,6 +636,7 @@ fn test_config_interactive_true_no_interactive_false() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: false, // Would open editor if in terminal
     };
@@ -649,6 +658,7 @@ fn test_config_interactive_true_no_interactive_true() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true, // Overrides interactive
     };
@@ -670,6 +680,7 @@ fn test_config_interactive_false_no_interactive_false() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: false, // Doesn't matter since interactive is false
     };
@@ -690,6 +701,7 @@ fn test_config_interactive_false_no_interactive_true() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -845,6 +857,7 @@ fn test_use_git_user_disabled() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -878,6 +891,7 @@ fn test_use_git_user_enabled_with_explicit_name() {
         title: "Test".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -976,6 +990,7 @@ fn test_special_characters_in_title() {
         title: "Bug: 100% failure rate (critical!)".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -994,6 +1009,7 @@ fn test_unicode_in_title() {
         title: "Support für Umlaute (日本語テスト)".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1013,6 +1029,7 @@ fn test_empty_title() {
         title: "".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1032,6 +1049,7 @@ fn test_very_long_title() {
         title: long_title,
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1107,6 +1125,7 @@ fn test_custom_stack_directory() {
         title: "Task".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1175,6 +1194,7 @@ fn test_different_users_in_parallel() {
             title: "Alice's Task".to_string(),
             labels: vec![],
             category: None,
+            attachments: vec![],
             interactive: false,
             no_interactive: true,
         };
@@ -1195,6 +1215,7 @@ fn test_different_users_in_parallel() {
             title: "Bob's Task".to_string(),
             labels: vec![],
             category: None,
+            attachments: vec![],
             interactive: false,
             no_interactive: true,
         };
@@ -1532,6 +1553,7 @@ fn test_new_with_labels_and_category() {
         title: "Critical Bug".to_string(),
         labels: vec!["bug".to_string(), "urgent".to_string(), "p0".to_string()],
         category: Some("bugs".to_string()),
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1552,6 +1574,73 @@ fn test_new_with_labels_and_category() {
 }
 
 #[test]
+fn test_new_with_attachments() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().build());
+    commands::init().expect("init should succeed");
+
+    // Create test files
+    let file1 = env.create_test_file("screenshot.png", "fake png");
+    let file2 = env.create_test_file("debug.log", "log content");
+
+    let args = NewArgs {
+        title: "Bug with attachments".to_string(),
+        labels: vec!["bug".to_string()],
+        category: None,
+        attachments: vec![
+            file1.to_string_lossy().to_string(),
+            file2.to_string_lossy().to_string(),
+            "https://github.com/issue/42".to_string(),
+        ],
+        interactive: false,
+        no_interactive: true,
+    };
+
+    commands::new(args).expect("new should succeed");
+
+    let files = env.list_stack_files();
+    assert_eq!(files.len(), 1, "Should have one item");
+
+    // Verify attachments were added
+    let content = env.read_item(&files[0]);
+    assert!(
+        content.contains("attachments:"),
+        "Should have attachments field"
+    );
+    assert!(
+        content.contains("https://github.com/issue/42"),
+        "Should have URL attachment"
+    );
+    assert!(
+        content.contains("-Attachment-1-"),
+        "Should have first file attachment"
+    );
+    assert!(
+        content.contains("-Attachment-2-"),
+        "Should have second file attachment"
+    );
+
+    // Get item ID from filename
+    let item_id = files[0]
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .split('-')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join("-");
+
+    // Verify files were copied
+    let attachment_files = env.list_attachment_files(&item_id);
+    assert_eq!(
+        attachment_files.len(),
+        2,
+        "Should have two attachment files"
+    );
+}
+
+#[test]
 fn test_new_with_empty_labels() {
     let env = TestEnv::new();
     env.write_global_config(&GlobalConfigBuilder::new().build());
@@ -1561,6 +1650,7 @@ fn test_new_with_empty_labels() {
         title: "No Labels".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1595,6 +1685,7 @@ fn test_new_multiple_items_unique_ids() {
             title: format!("Task {}", i),
             labels: vec![],
             category: None,
+            attachments: vec![],
             interactive: false,
             no_interactive: true,
         };
@@ -1633,6 +1724,7 @@ fn test_new_nested_category() {
         title: "Nested Task".to_string(),
         labels: vec![],
         category: Some("level1/level2".to_string()),
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -1949,6 +2041,7 @@ fn test_new_without_init() {
         title: "Task".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -2048,6 +2141,7 @@ fn test_category_with_special_characters() {
         title: "Task".to_string(),
         labels: vec![],
         category: Some("my-category_v2".to_string()),
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -2073,6 +2167,7 @@ fn test_label_with_special_characters() {
             "priority_high".to_string(),
         ],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -2096,6 +2191,7 @@ fn test_whitespace_only_title() {
         title: "   ".to_string(),
         labels: vec![],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -2115,6 +2211,7 @@ fn test_duplicate_labels_ignored() {
         title: "Task".to_string(),
         labels: vec!["bug".to_string(), "bug".to_string(), "bug".to_string()],
         category: None,
+        attachments: vec![],
         interactive: false,
         no_interactive: true,
     };
@@ -2379,4 +2476,598 @@ fn test_categories_without_init() {
 
     let result = commands::categories(&args);
     assert!(result.is_err(), "categories without init should fail");
+}
+
+// =============================================================================
+// Attach Add Command Tests
+// =============================================================================
+
+#[test]
+fn test_attach_add_file() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    // Create an item
+    let item_path = create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+    let item_id = "260101-AAA";
+
+    // Create a test file
+    let test_file = env.create_test_file("test.txt", "test content");
+
+    // Attach the file
+    let args = AttachAddArgs {
+        id: item_id.to_string(),
+        sources: vec![test_file.to_string_lossy().to_string()],
+    };
+    commands::attach_add(&args).expect("attach add should succeed");
+
+    // Verify attachment file was copied
+    let attachments = env.list_attachment_files(item_id);
+    assert_eq!(attachments.len(), 1, "Should have one attachment file");
+    assert!(
+        attachments[0]
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("test"),
+        "Filename should contain original name"
+    );
+
+    // Verify frontmatter was updated
+    let content = std::fs::read_to_string(&item_path).unwrap();
+    assert!(
+        content.contains("attachments:"),
+        "Item should have attachments field"
+    );
+}
+
+#[test]
+fn test_attach_add_url() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_path = create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+    let item_id = "260101-AAA";
+
+    let args = AttachAddArgs {
+        id: item_id.to_string(),
+        sources: vec!["https://github.com/user/repo/issues/42".to_string()],
+    };
+    commands::attach_add(&args).expect("attach add URL should succeed");
+
+    // No file should be created for URLs
+    let attachments = env.list_attachment_files(item_id);
+    assert!(
+        attachments.is_empty(),
+        "URL attachments should not create files"
+    );
+
+    // Verify frontmatter was updated
+    let content = std::fs::read_to_string(&item_path).unwrap();
+    assert!(
+        content.contains("https://github.com/user/repo/issues/42"),
+        "Item should contain the URL"
+    );
+}
+
+#[test]
+fn test_attach_add_multiple() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+    let item_id = "260101-AAA";
+
+    let file1 = env.create_test_file("file1.txt", "content 1");
+    let file2 = env.create_test_file("file2.txt", "content 2");
+
+    let args = AttachAddArgs {
+        id: item_id.to_string(),
+        sources: vec![
+            file1.to_string_lossy().to_string(),
+            file2.to_string_lossy().to_string(),
+            "https://example.com".to_string(),
+        ],
+    };
+    commands::attach_add(&args).expect("attach add multiple should succeed");
+
+    let attachments = env.list_attachment_files(item_id);
+    assert_eq!(attachments.len(), 2, "Should have two attachment files");
+}
+
+#[test]
+fn test_attach_add_counter_increments() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+    let item_id = "260101-AAA";
+
+    // Add first file
+    let file1 = env.create_test_file("first.txt", "content 1");
+    let args1 = AttachAddArgs {
+        id: item_id.to_string(),
+        sources: vec![file1.to_string_lossy().to_string()],
+    };
+    commands::attach_add(&args1).unwrap();
+
+    // Add second file
+    let file2 = env.create_test_file("second.txt", "content 2");
+    let args2 = AttachAddArgs {
+        id: item_id.to_string(),
+        sources: vec![file2.to_string_lossy().to_string()],
+    };
+    commands::attach_add(&args2).unwrap();
+
+    let attachments = env.list_attachment_files(item_id);
+    assert_eq!(attachments.len(), 2);
+
+    // Check that counters are different
+    let names: Vec<String> = attachments
+        .iter()
+        .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+        .collect();
+    assert!(
+        names.iter().any(|n| n.contains("-1-")),
+        "Should have counter 1"
+    );
+    assert!(
+        names.iter().any(|n| n.contains("-2-")),
+        "Should have counter 2"
+    );
+}
+
+#[test]
+fn test_attach_add_nonexistent_file() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+
+    let args = AttachAddArgs {
+        id: "260101-AAA".to_string(),
+        sources: vec!["/nonexistent/file.txt".to_string()],
+    };
+    // Should succeed but with warning, not adding the file
+    let result = commands::attach_add(&args);
+    assert!(
+        result.is_ok(),
+        "Should succeed even with missing file (warning)"
+    );
+
+    let attachments = env.list_attachment_files("260101-AAA");
+    assert!(attachments.is_empty(), "No attachments should be created");
+}
+
+#[test]
+fn test_attach_add_nonexistent_item() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let args = AttachAddArgs {
+        id: "NONEXISTENT".to_string(),
+        sources: vec!["https://example.com".to_string()],
+    };
+    let result = commands::attach_add(&args);
+    assert!(result.is_err(), "Should fail for nonexistent item");
+}
+
+#[test]
+fn test_attach_add_to_closed_item_fails() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "closed", &[], None);
+    // Move to archive
+    std::fs::rename(
+        env.stack_path().join("260101-AAA-test-item.md"),
+        env.archive_path().join("260101-AAA-test-item.md"),
+    )
+    .unwrap();
+
+    let args = AttachAddArgs {
+        id: "260101-AAA".to_string(),
+        sources: vec!["https://example.com".to_string()],
+    };
+    let result = commands::attach_add(&args);
+    assert!(result.is_err(), "Should fail for closed item");
+}
+
+#[test]
+fn test_attach_add_empty_sources_fails() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+
+    let args = AttachAddArgs {
+        id: "260101-AAA".to_string(),
+        sources: vec![],
+    };
+    let result = commands::attach_add(&args);
+    assert!(result.is_err(), "Should fail with empty sources");
+}
+
+#[test]
+fn test_attach_add_to_item_in_category() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], Some("bugs"));
+
+    let test_file = env.create_test_file("test.txt", "content");
+    let args = AttachAddArgs {
+        id: "260101-AAA".to_string(),
+        sources: vec![test_file.to_string_lossy().to_string()],
+    };
+    commands::attach_add(&args).expect("attach add in category should succeed");
+
+    // Verify attachment is in category directory
+    let category_path = env.stack_path().join("bugs");
+    let attachments: Vec<_> = std::fs::read_dir(&category_path)
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|name| name.contains("-Attachment-"))
+        })
+        .collect();
+    assert_eq!(
+        attachments.len(),
+        1,
+        "Attachment should be in category directory"
+    );
+}
+
+// =============================================================================
+// Attach Remove Command Tests
+// =============================================================================
+
+#[test]
+fn test_attach_remove_single() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[
+            &format!("{item_id}-Attachment-1-file.txt"),
+            "https://example.com",
+        ],
+        None,
+    );
+
+    let args = AttachRemoveArgs {
+        id: item_id.to_string(),
+        indices: vec![1], // Remove the file attachment
+    };
+    commands::attach_remove(&args).expect("attach remove should succeed");
+
+    // Verify file was deleted
+    let attachments = env.list_attachment_files(item_id);
+    assert!(attachments.is_empty(), "File attachment should be deleted");
+}
+
+#[test]
+fn test_attach_remove_multiple() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[
+            &format!("{item_id}-Attachment-1-a.txt"),
+            &format!("{item_id}-Attachment-2-b.txt"),
+            &format!("{item_id}-Attachment-3-c.txt"),
+        ],
+        None,
+    );
+
+    let args = AttachRemoveArgs {
+        id: item_id.to_string(),
+        indices: vec![1, 3], // Remove first and third
+    };
+    commands::attach_remove(&args).expect("attach remove multiple should succeed");
+
+    let attachments = env.list_attachment_files(item_id);
+    assert_eq!(attachments.len(), 1, "Should have one attachment left");
+    assert!(
+        attachments[0]
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("-2-"),
+        "Middle attachment should remain"
+    );
+}
+
+#[test]
+fn test_attach_remove_url_only_updates_frontmatter() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    let item_path = create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &["https://example.com", "https://other.com"],
+        None,
+    );
+
+    let args = AttachRemoveArgs {
+        id: item_id.to_string(),
+        indices: vec![1],
+    };
+    commands::attach_remove(&args).expect("remove URL should succeed");
+
+    let content = std::fs::read_to_string(&item_path).unwrap();
+    assert!(
+        !content.contains("https://example.com"),
+        "First URL should be removed"
+    );
+    assert!(
+        content.contains("https://other.com"),
+        "Second URL should remain"
+    );
+}
+
+#[test]
+fn test_attach_remove_invalid_index() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &["https://example.com"],
+        None,
+    );
+
+    let args = AttachRemoveArgs {
+        id: item_id.to_string(),
+        indices: vec![5], // Only 1 attachment exists
+    };
+    let result = commands::attach_remove(&args);
+    assert!(result.is_err(), "Should fail with invalid index");
+}
+
+#[test]
+fn test_attach_remove_from_empty_item() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+
+    let args = AttachRemoveArgs {
+        id: "260101-AAA".to_string(),
+        indices: vec![1],
+    };
+    let result = commands::attach_remove(&args);
+    assert!(result.is_err(), "Should fail when item has no attachments");
+}
+
+// =============================================================================
+// Attachments List Command Tests
+// =============================================================================
+
+#[test]
+fn test_attachments_list_empty() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+
+    let args = AttachmentsArgs {
+        id: "260101-AAA".to_string(),
+    };
+    // Should succeed but show "No attachments"
+    let result = commands::attachments(&args);
+    assert!(result.is_ok(), "attachments list should succeed for empty");
+}
+
+#[test]
+fn test_attachments_list_mixed() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[
+            &format!("{item_id}-Attachment-1-file.txt"),
+            "https://example.com",
+        ],
+        None,
+    );
+
+    let args = AttachmentsArgs {
+        id: item_id.to_string(),
+    };
+    let result = commands::attachments(&args);
+    assert!(result.is_ok(), "attachments list should succeed");
+}
+
+#[test]
+fn test_attachments_nonexistent_item() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let args = AttachmentsArgs {
+        id: "NONEXISTENT".to_string(),
+    };
+    let result = commands::attachments(&args);
+    assert!(result.is_err(), "Should fail for nonexistent item");
+}
+
+// =============================================================================
+// Attachment Movement Tests (close/reopen/category)
+// =============================================================================
+
+#[test]
+fn test_close_moves_attachments_to_archive() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[&format!("{item_id}-Attachment-1-file.txt")],
+        None,
+    );
+
+    // Verify attachment exists in stack
+    assert_eq!(env.list_attachment_files(item_id).len(), 1);
+
+    // Close the item
+    execute_close(item_id).expect("close should succeed");
+
+    // Verify attachment moved to archive
+    assert!(
+        env.list_attachment_files(item_id).is_empty(),
+        "No attachments in stack"
+    );
+    assert_eq!(
+        env.list_archive_attachment_files(item_id).len(),
+        1,
+        "Attachment should be in archive"
+    );
+}
+
+#[test]
+fn test_reopen_moves_attachments_from_archive() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[&format!("{item_id}-Attachment-1-file.txt")],
+        None,
+    );
+
+    // Close and then reopen
+    execute_close(item_id).expect("close should succeed");
+    execute_reopen(item_id).expect("reopen should succeed");
+
+    // Verify attachment is back in stack
+    assert_eq!(
+        env.list_attachment_files(item_id).len(),
+        1,
+        "Attachment should be back in stack"
+    );
+    assert!(
+        env.list_archive_attachment_files(item_id).is_empty(),
+        "No attachments in archive"
+    );
+}
+
+#[test]
+fn test_update_category_moves_attachments() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[&format!("{item_id}-Attachment-1-file.txt")],
+        None,
+    );
+
+    // Move to category
+    let args = UpdateArgs {
+        id: item_id.to_string(),
+        title: None,
+        labels: vec![],
+        category: Some("bugs".to_string()),
+        clear_category: false,
+    };
+    commands::update(args).expect("update category should succeed");
+
+    // Verify attachment is in category directory
+    let category_dir = env.stack_path().join("bugs");
+    let attachments: Vec<_> = std::fs::read_dir(&category_dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|name| name.contains("-Attachment-"))
+        })
+        .collect();
+    assert_eq!(attachments.len(), 1, "Attachment should be in category");
+}
+
+#[test]
+fn test_close_item_with_category_moves_attachments() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    let item_id = "260101-AAA";
+    create_test_item_with_attachments(
+        &env,
+        item_id,
+        "Test Item",
+        "open",
+        &[&format!("{item_id}-Attachment-1-file.txt")],
+        Some("bugs"),
+    );
+
+    execute_close(item_id).expect("close should succeed");
+
+    assert_eq!(
+        env.list_archive_attachment_files(item_id).len(),
+        1,
+        "Attachment should be in archive"
+    );
 }

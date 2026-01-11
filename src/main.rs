@@ -13,7 +13,8 @@ use owo_colors::OwoColorize;
 use clap::CommandFactory;
 use clap_complete::Shell;
 use qstack::commands::{
-    self, CategoriesArgs, LabelsArgs, ListFilter, NewArgs, SearchArgs, SortBy, UpdateArgs,
+    self, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs, CategoriesArgs, LabelsArgs, ListFilter,
+    NewArgs, SearchArgs, SortBy, UpdateArgs,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -131,9 +132,9 @@ The author is determined from (in order):\n  \
         after_help = concat!(
             h!("Examples:"), "\n  ",
             c!("qstack new "), a!("\"Fix login bug\""), "\n  ",
-            c!("qstack new "), a!("\"Add dark mode\""), c!(" --label "), a!("feature"), c!(" --label "), a!("ui"), "\n  ",
-            c!("qstack new "), a!("\"Memory leak\""), c!(" --label "), a!("bug"), c!(" --category "), a!("bugs"), "\n  ",
-            c!("qstack new "), a!("\"Update docs\""), c!(" -l "), a!("docs"), c!(" -c "), a!("documentation"), "\n  ",
+            c!("qstack new "), a!("\"Add dark mode\""), c!(" --label "), a!("feature ui"), "\n  ",
+            c!("qstack new "), a!("\"Memory leak\""), c!(" --label "), a!("bug urgent"), c!(" --category "), a!("bugs"), "\n  ",
+            c!("qstack new "), a!("\"Bug report\""), c!(" --attachment "), a!("screenshot.png debug.log"), "\n  ",
             c!("qstack new "), a!("\"Quick note\""), c!(" --no-interactive"), "       Skip editor\n\n",
             h!("Output:"), " Prints the relative path to the created file."
         )
@@ -142,13 +143,17 @@ The author is determined from (in order):\n  \
         /// Title of the item
         title: String,
 
-        /// Labels/tags for the item (can be specified multiple times)
-        #[arg(short, long)]
+        /// Labels/tags for the item (multiple values allowed)
+        #[arg(short, long, num_args = 1..)]
         label: Vec<String>,
 
         /// Category subdirectory for the item
         #[arg(short, long)]
         category: Option<String>,
+
+        /// Files or URLs to attach (multiple values allowed)
+        #[arg(short, long, num_args = 1..)]
+        attachment: Vec<String>,
 
         /// Force interactive mode (open editor)
         #[arg(short = 'i', long, conflicts_with = "no_interactive")]
@@ -392,6 +397,24 @@ an item to open. Use -i to force interactive mode, or --no-interactive to just d
         no_interactive: bool,
     },
 
+    /// Manage item attachments (list, add, remove)
+    #[command(
+        long_about = "Manage attachments for items.\n\n\
+Attachments can be files (copied to item directory) or URLs (stored as references). \
+File attachments are renamed to follow the pattern: {ID}-Attachment-{N}-{name}.{ext}",
+        after_help = concat!(
+            h!("Examples:"), "\n  ",
+            c!("qstack attachments list --id "), a!("260109"), "\n  ",
+            c!("qstack attachments add --id "), a!("260109"), " ", a!("screenshot.png"), "\n  ",
+            c!("qstack attachments add --id "), a!("260109"), " ", a!("https://github.com/issue/42"), "\n  ",
+            c!("qstack attachments remove --id "), a!("260109"), " ", a!("1"), " ", a!("2")
+        )
+    )]
+    Attachments {
+        #[command(subcommand)]
+        action: AttachmentsAction,
+    },
+
     /// One-time setup: create global config and install shell completions
     #[command(
         long_about = "One-time setup for qstack.\n\n\
@@ -434,6 +457,54 @@ For automatic installation, use 'qstack setup' instead.",
     },
 }
 
+/// Subcommands for the attachments command
+#[derive(Subcommand)]
+enum AttachmentsAction {
+    /// List attachments for an item
+    #[command(
+        after_help = concat!(
+            h!("Output:"), " Table with index, type (file/url), and attachment path or URL."
+        )
+    )]
+    List {
+        /// Item ID (partial match supported)
+        #[arg(long, required = true)]
+        id: String,
+    },
+
+    /// Add file or URL attachments to an item
+    #[command(
+        after_help = concat!(
+            h!("Note:"), " Files are copied to the item directory. URLs are stored as references."
+        )
+    )]
+    Add {
+        /// Item ID (partial match supported)
+        #[arg(long, required = true)]
+        id: String,
+
+        /// Files or URLs to attach
+        #[arg(required = true)]
+        sources: Vec<String>,
+    },
+
+    /// Remove attachments from an item by index
+    #[command(
+        after_help = concat!(
+            h!("Note:"), " Use ", c!("qstack attachments list --id <ID>"), " to see indices."
+        )
+    )]
+    Remove {
+        /// Item ID (partial match supported)
+        #[arg(long, required = true)]
+        id: String,
+
+        /// Attachment indices to remove (1-based)
+        #[arg(required = true)]
+        indices: Vec<usize>,
+    },
+}
+
 fn main() {
     if let Err(err) = run() {
         eprintln!("{} {err:#}", "error:".red().bold());
@@ -451,12 +522,14 @@ fn run() -> Result<()> {
             title,
             label,
             category,
+            attachment,
             interactive,
             no_interactive,
         } => commands::new(NewArgs {
             title,
             labels: label,
             category,
+            attachments: attachment,
             interactive,
             no_interactive,
         }),
@@ -526,6 +599,16 @@ fn run() -> Result<()> {
             interactive,
             no_interactive,
         }),
+
+        Commands::Attachments { action } => match action {
+            AttachmentsAction::List { id } => commands::attachments(&AttachmentsArgs { id }),
+            AttachmentsAction::Add { id, sources } => {
+                commands::attach_add(&AttachAddArgs { id, sources })
+            }
+            AttachmentsAction::Remove { id, indices } => {
+                commands::attach_remove(&AttachRemoveArgs { id, indices })
+            }
+        },
 
         Commands::Setup => {
             let mut cmd = Cli::command();

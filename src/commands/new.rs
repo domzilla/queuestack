@@ -5,13 +5,16 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
+use std::path::Path;
+
 use anyhow::{Context, Result};
 use chrono::Utc;
+use owo_colors::OwoColorize;
 
 use crate::{
     config::Config,
     editor, id,
-    item::{Frontmatter, Item, Status},
+    item::{is_url, Frontmatter, Item, Status},
     storage,
 };
 
@@ -20,6 +23,7 @@ pub struct NewArgs {
     pub title: String,
     pub labels: Vec<String>,
     pub category: Option<String>,
+    pub attachments: Vec<String>,
     pub interactive: bool,
     pub no_interactive: bool,
 }
@@ -43,13 +47,53 @@ pub fn execute(args: NewArgs) -> Result<()> {
         status: Status::Open,
         labels: args.labels,
         category: args.category,
+        attachments: vec![],
     };
 
     // Create item
-    let item = Item::new(frontmatter);
+    let mut item = Item::new(frontmatter);
 
     // Save to disk
     let path = storage::create_item(&config, &item)?;
+
+    // Process attachments if any
+    if !args.attachments.is_empty() {
+        let item_dir = path
+            .parent()
+            .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?;
+        let item_id = item.id().to_string();
+
+        for source in &args.attachments {
+            if is_url(source) {
+                item.add_attachment(source.clone());
+                println!("  {} {}", "+".green(), source);
+            } else {
+                let source_path = Path::new(source);
+                let source_path = if source_path.is_relative() {
+                    std::env::current_dir()?.join(source_path)
+                } else {
+                    source_path.to_path_buf()
+                };
+
+                if source_path.exists() {
+                    let counter = item.next_attachment_counter();
+                    let new_filename =
+                        storage::copy_attachment(&source_path, item_dir, &item_id, counter)?;
+                    item.add_attachment(new_filename.clone());
+                    println!("  {} {} -> {}", "+".green(), source, new_filename);
+                } else {
+                    eprintln!(
+                        "  {} File not found: {}",
+                        "!".yellow(),
+                        source_path.display()
+                    );
+                }
+            }
+        }
+
+        // Save updated item with attachments
+        item.save(&path)?;
+    }
 
     // Resolve interactive mode: flags override config
     let interactive = if args.interactive {

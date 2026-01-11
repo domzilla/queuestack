@@ -95,6 +95,7 @@ mod tests {
             status: super::super::Status::Open,
             labels: vec!["bug".to_string()],
             category: Some("bugs".to_string()),
+            attachments: vec![],
         }
     }
 

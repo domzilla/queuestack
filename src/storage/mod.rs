@@ -12,7 +12,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use walkdir::WalkDir;
 
-use crate::{config::Config, item::Item};
+use crate::{
+    config::Config,
+    item::{slugify, Item},
+};
 
 /// Walks all item files in the stack directory.
 pub fn walk_items(config: &Config) -> impl Iterator<Item = PathBuf> {
@@ -107,6 +110,11 @@ pub fn archive_item(config: &Config, path: &Path) -> Result<PathBuf> {
     let archive_path = config.archive_path();
     std::fs::create_dir_all(&archive_path)?;
 
+    // Move attachments first
+    if let Some(src_dir) = path.parent() {
+        move_attachments(src_dir, &archive_path, path);
+    }
+
     let dest = archive_path.join(filename);
     git::move_file(path, &dest)?;
 
@@ -121,6 +129,11 @@ pub fn unarchive_item(config: &Config, path: &Path, category: Option<&str>) -> R
 
     let dest_dir = target_directory(config, category);
     std::fs::create_dir_all(&dest_dir)?;
+
+    // Move attachments first
+    if let Some(src_dir) = path.parent() {
+        move_attachments(src_dir, &dest_dir, path);
+    }
 
     let dest = dest_dir.join(filename);
     git::move_file(path, &dest)?;
@@ -154,10 +167,160 @@ pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) ->
     let dest = dest_dir.join(filename);
 
     if path != dest {
+        // Move attachments first
+        if let Some(src_dir) = path.parent() {
+            move_attachments(src_dir, &dest_dir, path);
+        }
         git::move_file(path, &dest)?;
     }
 
     Ok(dest)
+}
+
+// =============================================================================
+// Attachment Operations
+// =============================================================================
+
+/// Copies a file as an attachment to the item's directory.
+///
+/// Returns the new filename: `{item_id}-Attachment-{counter}-{slugified_name}.{ext}`
+pub fn copy_attachment(
+    source: &Path,
+    item_dir: &Path,
+    item_id: &str,
+    counter: u32,
+) -> Result<String> {
+    // Get original filename parts
+    let original_name = source
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("attachment");
+
+    let extension = source.extension().and_then(|s| s.to_str()).unwrap_or("");
+
+    // Create slugified name
+    let slug = slugify(original_name);
+    let slug_part = if slug.is_empty() {
+        "file".to_string()
+    } else {
+        slug
+    };
+
+    // Build new filename
+    let new_filename = if extension.is_empty() {
+        format!("{item_id}-Attachment-{counter}-{slug_part}")
+    } else {
+        format!("{item_id}-Attachment-{counter}-{slug_part}.{extension}")
+    };
+
+    let dest = item_dir.join(&new_filename);
+
+    // Copy the file
+    std::fs::copy(source, &dest).with_context(|| {
+        format!(
+            "Failed to copy attachment: {} -> {}",
+            source.display(),
+            dest.display()
+        )
+    })?;
+
+    Ok(new_filename)
+}
+
+/// Deletes an attachment file.
+///
+/// Uses `trash` command if available (macOS), otherwise uses git rm or standard remove.
+pub fn delete_attachment(item_dir: &Path, filename: &str) -> Result<()> {
+    let path = item_dir.join(filename);
+
+    if !path.exists() {
+        // File already gone, nothing to do
+        return Ok(());
+    }
+
+    // Try to use trash command (macOS) for safe deletion
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::{Command, Stdio};
+
+        let status = Command::new("trash")
+            .arg(&path)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+
+        if status.is_ok_and(|s| s.success()) {
+            return Ok(());
+        }
+        // Fall through to git rm / standard remove
+    }
+
+    // Use git rm if in a git repo, otherwise standard remove
+    git::remove_file(&path)
+}
+
+/// Finds all attachment files for an item in a directory.
+///
+/// Looks for files matching `{item_id}-Attachment-*`
+pub fn find_attachment_files(item_dir: &Path, item_id: &str) -> Vec<PathBuf> {
+    let prefix = format!("{item_id}-Attachment-");
+
+    if !item_dir.exists() {
+        return Vec::new();
+    }
+
+    std::fs::read_dir(item_dir)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|name| name.starts_with(&prefix))
+        })
+        .collect()
+}
+
+/// Moves attachment files alongside an item.
+///
+/// Called internally when archiving, unarchiving, or moving items between categories.
+fn move_attachments(src_dir: &Path, dest_dir: &Path, item_path: &Path) {
+    // Extract item ID from the item filename
+    let item_id = item_path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .and_then(|name| {
+            // ID is everything before the first dash after the pattern YYMMDD-XXXXX
+            // Format: "260109-02F7K9M-title-slug.md" -> "260109-02F7K9M"
+            let parts: Vec<&str> = name.splitn(3, '-').collect();
+            if parts.len() >= 2 {
+                Some(format!("{}-{}", parts[0], parts[1]))
+            } else {
+                None
+            }
+        });
+
+    let Some(item_id) = item_id else {
+        return; // Can't determine ID, skip attachment move
+    };
+
+    let attachments = find_attachment_files(src_dir, &item_id);
+
+    for attachment_path in attachments {
+        if let Some(filename) = attachment_path.file_name() {
+            let dest_path = dest_dir.join(filename);
+            // Use git mv for tracked files, falls back to rename
+            if let Err(e) = git::move_file(&attachment_path, &dest_path) {
+                // Log warning but continue - attachment might have been manually deleted
+                eprintln!(
+                    "Warning: Failed to move attachment {}: {}",
+                    attachment_path.display(),
+                    e
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]
