@@ -31,13 +31,16 @@ qstack/
 ├── src/
 │   ├── main.rs             # CLI entry point (clap derive)
 │   ├── lib.rs              # Library root, public API
+│   ├── constants.rs        # Shared constants
 │   ├── editor.rs           # Editor launch logic
+│   ├── ui.rs               # UI utilities
 │   ├── id/
 │   │   ├── mod.rs          # ID generator with pattern parsing
-│   │   └── base32.rs       # Crockford's Base32 encoder
+│   │   └── base32.rs       # Base32 encoder
 │   ├── item/
 │   │   ├── mod.rs          # Item struct & Status enum
 │   │   ├── parser.rs       # YAML frontmatter parsing
+│   │   ├── search.rs       # Search/filter logic
 │   │   └── slug.rs         # Title slugification
 │   ├── config/
 │   │   ├── mod.rs          # Merged config resolver
@@ -46,8 +49,23 @@ qstack/
 │   ├── storage/
 │   │   ├── mod.rs          # File operations, ID lookup
 │   │   └── git.rs          # git mv integration
+│   ├── tui/
+│   │   ├── mod.rs          # TUI module root
+│   │   ├── terminal.rs     # Terminal setup/teardown
+│   │   ├── event.rs        # Input event handling
+│   │   ├── screens/
+│   │   │   ├── mod.rs
+│   │   │   ├── select.rs   # Item selection screen
+│   │   │   ├── prompt.rs   # Text input prompt
+│   │   │   └── wizard.rs   # New item wizard
+│   │   └── widgets/
+│   │       ├── mod.rs
+│   │       ├── select_list.rs
+│   │       ├── multi_select.rs
+│   │       ├── text_input.rs
+│   │       └── text_area.rs
 │   └── commands/
-│       ├── mod.rs          # Command dispatch
+│       ├── mod.rs          # Command dispatch & shared types
 │       ├── init.rs         # qstack init
 │       ├── new.rs          # qstack new <title>
 │       ├── list.rs         # qstack list [filters]
@@ -56,13 +74,25 @@ qstack/
 │       ├── close.rs        # qstack close/reopen
 │       ├── labels.rs       # qstack labels
 │       ├── categories.rs   # qstack categories
+│       ├── attachments.rs  # qstack attachments (list/add/remove)
+│       ├── attach.rs       # Attachment helpers
 │       ├── setup.rs        # qstack setup (one-time setup)
 │       └── completions.rs  # qstack completions <shell>
 ├── scripts/
 │   └── install-hooks.sh    # Git hooks installer
 ├── tests/
-│   ├── harness.rs          # Test utilities
-│   └── integration.rs      # Integration tests
+│   ├── common/mod.rs       # Test utilities & harness
+│   ├── init.rs
+│   ├── new.rs
+│   ├── list.rs
+│   ├── search.rs
+│   ├── update.rs
+│   ├── close.rs
+│   ├── labels.rs
+│   ├── categories.rs
+│   ├── attach.rs
+│   ├── config.rs
+│   └── edge_cases.rs
 ├── Cargo.toml
 ├── Cargo.lock
 ├── rustfmt.toml
@@ -75,6 +105,7 @@ qstack/
 - CLI commands: `src/commands/*.rs`
 - Item schema: `src/item/mod.rs`
 - Config schema: `src/config/*.rs`
+- TUI components: `src/tui/*.rs`
 
 ## Dependencies
 - `clap` + `clap_complete` - CLI argument parsing (derive) + shell completions
@@ -93,18 +124,25 @@ qstack/
 ```bash
 qstack init                                    # Initialize project
 qstack new "Title" --label bug --category bugs # Create item
-qstack new "Title" --no-interactive            # Create without opening editor
-qstack new "Title" -i                          # Force open editor even if config says no
+qstack new                                     # Launch wizard
+qstack new "Title" --no-interactive            # Create without editor
+qstack new "Title" -i                          # Force editor open
 qstack list --open --sort date                 # List items
-qstack search "query"                          # Search and select interactively
-qstack search "bug" --full-text --no-interactive  # Full-text search, list results
+qstack list --label bug --author "John"        # Filter items
+qstack search "query"                          # Search and select
+qstack search "bug" --full-text --no-interactive  # Full-text search
 qstack update --id 260109 --title "New Title"  # Update item
+qstack update --id 26 --label urgent           # Partial ID match
 qstack close --id 260109                       # Archive item
 qstack reopen --id 260109                      # Restore item
-qstack labels                                  # List all labels (interactive selection)
-qstack categories                              # List all categories (interactive selection)
-qstack setup                                   # One-time setup (config + completions)
-qstack completions zsh                         # Generate shell completions
+qstack labels                                  # List all labels
+qstack categories                              # List all categories
+qstack attachments list --id 260109            # List attachments
+qstack attachments add --id 260109 file.png    # Add file attachment
+qstack attachments add --id 260109 https://... # Add URL attachment
+qstack attachments remove --id 260109 1        # Remove by index
+qstack setup                                   # One-time setup
+qstack completions zsh                         # Generate completions
 ```
 
 ## Shell Completions
@@ -117,7 +155,8 @@ project-root/
 └── qstack/             # Item storage
     ├── archive/        # Closed items
     ├── bugs/           # Category subdirectory
-    │   └── 260109-02F7K9M-fix-login-styling.md
+    │   ├── 260109-02F7K9M-fix-login-styling.md
+    │   └── 260109-02F7K9M-Attachment-1-screenshot.png
     └── 260109-02F8L1P-add-dark-mode.md
 ```
 
@@ -133,16 +172,19 @@ labels:
   - bug
   - ui
 category: bugs
+attachments:
+  - 260109-02F7K9M-Attachment-1-screenshot.png
+  - https://github.com/org/repo/issues/42
 ---
 
 Description and notes go here in Markdown.
 ```
 
 ## ID Generation
-Uses Crockford's Base32 (0-9, A-Z excluding I,L,O,U) with pattern `%y%m%d-%T%RRR`:
+Default pattern `%y%m%d-%T%RRR` produces IDs like `260109-0A2B3C4`:
 - `%y%m%d` - Date (YYMMDD)
-- `%T` - 4-char Base32 time (seconds since midnight)
-- `%RRR` - 3 random Base32 chars
+- `%T` - 4-char encoded time (seconds since midnight)
+- `%RRR` - 3 random chars
 
 ## Error Handling
 - Use `anyhow::Result` for application errors
@@ -167,7 +209,7 @@ When adding a new config option:
 1. Add the field to both `GlobalConfig` and `ProjectConfig`
 2. Add resolution logic in `Config` (merged config) - project overrides global
 3. Update both `save_with_comments()` methods to include documentation
-4. Update test harness builders in `tests/harness.rs`
+4. Update test harness builders in `tests/common/mod.rs`
 
 ## Style & Conventions
 Follow the Rust style guide: `~/Agents/Style/rust-style-guide.md`
