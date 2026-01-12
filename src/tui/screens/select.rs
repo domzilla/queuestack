@@ -95,8 +95,7 @@ impl TuiApp for SelectScreen {
         // Prompt
         let prompt_block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::Cyan))
-            .title(" Select ");
+            .border_style(Style::default().fg(Color::Cyan));
 
         let prompt = Paragraph::new(self.prompt.as_str()).block(prompt_block);
         frame.render_widget(prompt, chunks[0]);
@@ -124,14 +123,16 @@ impl TuiApp for SelectScreen {
 
         // Help
         let help = Paragraph::new(Line::from(vec![
-            ratatui::text::Span::styled("↑↓", Style::default().fg(Color::Cyan)),
-            ratatui::text::Span::raw(" Navigate  "),
             ratatui::text::Span::styled("Enter", Style::default().fg(Color::Cyan)),
             ratatui::text::Span::raw(" Select  "),
             ratatui::text::Span::styled("Esc", Style::default().fg(Color::Cyan)),
             ratatui::text::Span::raw(" Cancel"),
         ]))
-        .block(Block::default().borders(Borders::ALL));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        );
 
         frame.render_widget(help, help_chunk);
     }

@@ -95,7 +95,11 @@ impl TuiApp for PromptScreen {
             ratatui::text::Span::styled("Esc", Style::default().fg(Color::Cyan)),
             ratatui::text::Span::raw(" Cancel"),
         ]))
-        .block(Block::default().borders(Borders::ALL));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        );
 
         frame.render_widget(help, chunks[3]);
     }

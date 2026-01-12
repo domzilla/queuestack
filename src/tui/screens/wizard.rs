@@ -428,11 +428,11 @@ impl TuiApp for NewItemWizard<'_> {
     fn render(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
-        // Main layout (help bar is 4 lines to accommodate stacking on narrow terminals)
+        // Main layout
         let chunks = Layout::vertical([
             Constraint::Length(3), // Header
             Constraint::Min(10),   // Content
-            Constraint::Length(4), // Help
+            Constraint::Length(3), // Help
         ])
         .split(area);
 
@@ -599,6 +599,51 @@ impl NewItemWizard<'_> {
         }
     }
 
+    fn help_panel_spans(&self) -> Vec<Span<'static>> {
+        let key = Style::default().fg(Color::Cyan);
+        let text = Style::default();
+
+        match self.step {
+            WizardStep::Title => vec![Span::styled("Enter", key), Span::styled(" Confirm", text)],
+            WizardStep::Content => vec![],
+            WizardStep::Attachments => vec![
+                Span::styled("Enter", key),
+                Span::styled(" Add/Next  ", text),
+                Span::styled("Backspace", key),
+                Span::styled(" Remove  ", text),
+                Span::styled("Drop", key),
+                Span::styled(" Add", text),
+            ],
+            WizardStep::Category => {
+                if self.category_input_mode {
+                    vec![
+                        Span::styled("Enter", key),
+                        Span::styled(" Confirm  ", text),
+                        Span::styled("Esc", key),
+                        Span::styled(" Cancel", text),
+                    ]
+                } else {
+                    vec![
+                        Span::styled("Enter", key),
+                        Span::styled(" Select/Next", text),
+                    ]
+                }
+            }
+            WizardStep::Labels => {
+                if self.label_input_mode {
+                    vec![
+                        Span::styled("Enter", key),
+                        Span::styled(" Add  ", text),
+                        Span::styled("Esc", key),
+                        Span::styled(" Cancel", text),
+                    ]
+                } else {
+                    vec![Span::styled("Enter", key), Span::styled(" Toggle", text)]
+                }
+            }
+        }
+    }
+
     fn render_help(&self, frame: &mut Frame, area: Rect) {
         let is_input_mode = self.category_input_mode || self.label_input_mode;
 
@@ -611,45 +656,28 @@ impl NewItemWizard<'_> {
             "Next"
         };
 
-        let enabled = Style::default().fg(Color::White);
-        let disabled = Style::default().fg(Color::DarkGray);
+        let key_on = Style::default().fg(Color::Cyan);
+        let key_off = Style::default().fg(Color::DarkGray);
+        let txt_on = Style::default();
+        let txt_off = Style::default().fg(Color::DarkGray);
 
         let nav_spans = vec![
-            Span::styled("Ctrl+P", if can_go_back { enabled } else { disabled }),
-            Span::styled(": Back  ", if can_go_back { enabled } else { disabled }),
-            Span::styled("Ctrl+N", if can_go_next { enabled } else { disabled }),
+            Span::styled("Ctrl+P", if can_go_back { key_on } else { key_off }),
+            Span::styled(" Back  ", if can_go_back { txt_on } else { txt_off }),
+            Span::styled("Ctrl+N", if can_go_next { key_on } else { key_off }),
             Span::styled(
-                format!(": {next_label}  "),
-                if can_go_next { enabled } else { disabled },
+                format!(" {next_label}  "),
+                if can_go_next { txt_on } else { txt_off },
             ),
-            Span::styled("Esc", enabled),
-            Span::styled(": Cancel", enabled),
+            Span::styled("Esc", key_on),
+            Span::styled(" Cancel", txt_on),
         ];
 
-        // Panel-specific shortcuts
-        let panel_text = match self.step {
-            WizardStep::Title => "Enter: Confirm",
-            WizardStep::Content => "",
-            WizardStep::Attachments => "Enter: Add/Next  Backspace: Remove  Drop: Add",
-            WizardStep::Category => {
-                if self.category_input_mode {
-                    "Enter: Confirm  Esc: Cancel"
-                } else {
-                    "Enter: Select/Next"
-                }
-            }
-            WizardStep::Labels => {
-                if self.label_input_mode {
-                    "Enter: Add  Esc: Cancel"
-                } else {
-                    "Enter: Toggle"
-                }
-            }
-        };
+        let panel_spans = self.help_panel_spans();
 
         // Calculate widths
         let nav_width: usize = nav_spans.iter().map(|s| s.content.len()).sum();
-        let panel_width = panel_text.len();
+        let panel_width: usize = panel_spans.iter().map(|s| s.content.len()).sum();
         let inner_width = area.width.saturating_sub(2) as usize; // Account for borders
 
         // Check if we need to stack vertically
@@ -659,21 +687,18 @@ impl NewItemWizard<'_> {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::DarkGray));
 
-        if needs_stacking && !panel_text.is_empty() {
+        if needs_stacking && !panel_spans.is_empty() {
             // Vertical layout: nav on top, panel below
-            let lines = vec![
-                Line::from(nav_spans),
-                Line::from(Span::styled(panel_text, enabled)),
-            ];
+            let lines = vec![Line::from(nav_spans), Line::from(panel_spans)];
             let help = Paragraph::new(lines).block(block);
             frame.render_widget(help, area);
         } else {
             // Horizontal layout: nav left, panel right
             let mut spans = nav_spans;
-            if !panel_text.is_empty() {
+            if !panel_spans.is_empty() {
                 let padding = inner_width.saturating_sub(nav_width + panel_width);
                 spans.push(Span::raw(" ".repeat(padding)));
-                spans.push(Span::styled(panel_text, enabled));
+                spans.extend(panel_spans);
             }
             let help = Paragraph::new(Line::from(spans)).block(block);
             frame.render_widget(help, area);
