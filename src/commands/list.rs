@@ -238,22 +238,20 @@ fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
         .map(|(i, _)| i)
         .collect();
 
-    if selectable_indices.is_empty() {
-        println!("{}", "No labels with open items.".dimmed());
-        return Ok(());
-    }
-
     // Build display options with visual distinction for non-selectable items
     let options: Vec<String> = labels
         .iter()
-        .map(|(label, count)| {
-            if *count > 0 {
-                format!("{label} ({count})")
-            } else {
-                format!("{label} (0)") // Will be shown dimmed in TUI
-            }
-        })
+        .map(|(label, count)| format!("{label} ({count})"))
         .collect();
+
+    // If no labels have open items, show the list but inform user
+    if selectable_indices.is_empty() {
+        println!("{}", "Labels (no open items):".dimmed());
+        for option in &options {
+            println!("  {}", option.dimmed());
+        }
+        return Ok(());
+    }
 
     let Some(selection) = ui::select_from_list_filtered(
         "Select a label to filter by",
@@ -345,11 +343,6 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
         .map(|(i, _)| i)
         .collect();
 
-    if selectable_indices.is_empty() {
-        println!("{}", "No categories with open items.".dimmed());
-        return Ok(());
-    }
-
     // Build display options
     let options: Vec<String> = categories
         .iter()
@@ -358,6 +351,15 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
             format!("{name} ({count})")
         })
         .collect();
+
+    // If no categories have open items, show the list but inform user
+    if selectable_indices.is_empty() {
+        println!("{}", "Categories (no open items):".dimmed());
+        for option in &options {
+            println!("  {}", option.dimmed());
+        }
+        return Ok(());
+    }
 
     let Some(selection) = ui::select_from_list_filtered(
         "Select a category to filter by",
