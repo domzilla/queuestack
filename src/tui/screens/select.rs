@@ -2,6 +2,8 @@
 //!
 //! Replaces dialoguer's Select for item selection.
 
+use std::collections::HashSet;
+
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
@@ -38,6 +40,11 @@ impl SelectScreen {
 
     fn with_header(mut self, header: impl Into<String>) -> Self {
         self.header = Some(header.into());
+        self
+    }
+
+    fn with_disabled(mut self, disabled: HashSet<usize>) -> Self {
+        self.list = self.list.with_disabled(disabled);
         self
     }
 }
@@ -160,5 +167,31 @@ pub fn select_from_list_with_header<T: ToString>(
     }
 
     let app = SelectScreen::new(prompt, items).with_header(header);
+    run(app)
+}
+
+/// Select from a list with some items disabled (visible but not selectable).
+///
+/// `selectable_indices` contains the indices that CAN be selected.
+/// Items not in this list are shown dimmed and cannot be navigated to.
+/// Returns `Some(index)` if an item was selected, `None` if cancelled.
+pub fn select_from_list_filtered<T: ToString>(
+    prompt: &str,
+    options: &[T],
+    selectable_indices: &[usize],
+) -> Result<Option<usize>> {
+    let items: Vec<String> = options.iter().map(ToString::to_string).collect();
+
+    if items.is_empty() {
+        anyhow::bail!("No items to select from");
+    }
+
+    // Build disabled set (all indices not in selectable_indices)
+    let selectable: HashSet<usize> = selectable_indices.iter().copied().collect();
+    let disabled: HashSet<usize> = (0..items.len())
+        .filter(|i| !selectable.contains(i))
+        .collect();
+
+    let app = SelectScreen::new(prompt, items).with_disabled(disabled);
     run(app)
 }

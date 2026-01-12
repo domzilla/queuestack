@@ -20,7 +20,10 @@ use crate::{
     editor,
     item::{Item, Status},
     storage::AttachmentResult,
-    tui::screens::{select_from_list as tui_select, select_from_list_with_header},
+    tui::screens::{
+        select_from_list as tui_select, select_from_list_filtered as tui_select_filtered,
+        select_from_list_with_header,
+    },
 };
 
 // =============================================================================
@@ -107,6 +110,19 @@ impl InteractiveArgs {
 /// Returns `Some(index)` if an item was selected, `None` if cancelled.
 pub fn select_from_list<T: ToString>(prompt: &str, options: &[T]) -> Result<Option<usize>> {
     tui_select(prompt, options)
+}
+
+/// Interactive selection with some items disabled.
+///
+/// Shows all options but only allows selecting items at `selectable_indices`.
+/// Disabled items are shown dimmed and cannot be navigated to.
+/// Returns `Some(index)` if an item was selected, `None` if cancelled.
+pub fn select_from_list_filtered<T: ToString>(
+    prompt: &str,
+    options: &[T],
+    selectable_indices: &[usize],
+) -> Result<Option<usize>> {
+    tui_select_filtered(prompt, options, selectable_indices)
 }
 
 /// Interactive selection for items - returns index.

@@ -1,5 +1,7 @@
 //! Single-select scrollable list widget.
 
+use std::collections::HashSet;
+
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     buffer::Buffer,
@@ -25,6 +27,8 @@ pub struct SelectList {
     items: Vec<String>,
     state: ListState,
     title: String,
+    /// Indices of items that are disabled (shown but not selectable)
+    disabled: HashSet<usize>,
 }
 
 impl SelectList {
@@ -39,6 +43,7 @@ impl SelectList {
             items,
             state,
             title: String::new(),
+            disabled: HashSet::new(),
         }
     }
 
@@ -47,6 +52,36 @@ impl SelectList {
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = title.into();
         self
+    }
+
+    /// Set which indices are disabled (visible but not selectable).
+    #[must_use]
+    pub fn with_disabled(mut self, disabled: HashSet<usize>) -> Self {
+        self.disabled = disabled;
+        // If current selection is disabled, move to first enabled item
+        if let Some(selected) = self.state.selected() {
+            if self.disabled.contains(&selected) {
+                self.select_first_enabled();
+            }
+        }
+        self
+    }
+
+    /// Select the first enabled item.
+    fn select_first_enabled(&mut self) {
+        for i in 0..self.items.len() {
+            if !self.disabled.contains(&i) {
+                self.state.select(Some(i));
+                return;
+            }
+        }
+        // All items disabled - select nothing
+        self.state.select(None);
+    }
+
+    /// Check if an index is enabled (not disabled).
+    fn is_enabled(&self, index: usize) -> bool {
+        !self.disabled.contains(&index)
     }
 
     /// Get the currently selected index.
@@ -64,40 +99,42 @@ impl SelectList {
         self.items.len()
     }
 
-    /// Move selection up.
+    /// Move selection up, skipping disabled items.
     pub fn select_previous(&mut self) {
         if self.items.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
+        let current = self.state.selected().unwrap_or(0);
+        let len = self.items.len();
+
+        // Try to find an enabled item going backwards
+        for offset in 1..=len {
+            let i = (current + len - offset) % len;
+            if self.is_enabled(i) {
+                self.state.select(Some(i));
+                return;
             }
-            None => 0,
-        };
-        self.state.select(Some(i));
+        }
+        // No enabled items found, keep current
     }
 
-    /// Move selection down.
+    /// Move selection down, skipping disabled items.
     pub fn select_next(&mut self) {
         if self.items.is_empty() {
             return;
         }
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
+        let current = self.state.selected().unwrap_or(0);
+        let len = self.items.len();
+
+        // Try to find an enabled item going forwards
+        for offset in 1..=len {
+            let i = (current + offset) % len;
+            if self.is_enabled(i) {
+                self.state.select(Some(i));
+                return;
             }
-            None => 0,
-        };
-        self.state.select(Some(i));
+        }
+        // No enabled items found, keep current
     }
 
     /// Handle a key event.
@@ -111,7 +148,15 @@ impl SelectList {
                 self.select_next();
                 SelectAction::None
             }
-            KeyCode::Enter => SelectAction::Confirm,
+            KeyCode::Enter => {
+                // Only confirm if selection is enabled
+                if let Some(idx) = self.state.selected() {
+                    if self.is_enabled(idx) {
+                        return SelectAction::Confirm;
+                    }
+                }
+                SelectAction::None
+            }
             KeyCode::Esc => SelectAction::Cancel,
             _ => SelectAction::None,
         }
@@ -139,14 +184,21 @@ impl SelectList {
             .iter()
             .enumerate()
             .map(|(i, item)| {
-                let style = if Some(i) == self.state.selected() {
+                let is_selected = Some(i) == self.state.selected();
+                let is_disabled = self.disabled.contains(&i);
+
+                let style = if is_disabled {
+                    // Disabled items shown dimmed
+                    Style::default().fg(Color::DarkGray)
+                } else if is_selected {
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
                 };
-                let prefix = if Some(i) == self.state.selected() {
+
+                let prefix = if is_selected && !is_disabled {
                     "> "
                 } else {
                     "  "
@@ -172,6 +224,7 @@ impl Clone for SelectList {
     fn clone(&self) -> Self {
         let mut new_list = Self::new(self.items.clone());
         new_list.title.clone_from(&self.title);
+        new_list.disabled.clone_from(&self.disabled);
         if let Some(idx) = self.state.selected() {
             new_list.state.select(Some(idx));
         }

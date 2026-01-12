@@ -191,55 +191,82 @@ fn execute_items(filter: &ListFilter, config: &Config) -> Result<()> {
 
 /// Lists all unique labels across items.
 fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
-    // Collect items based on status filter (respects --closed flag)
     let item_filter = ItemFilter {
         label: None,
         author: None,
     };
-    let items = match filter.status {
-        StatusFilter::Open => collect_items(config, false, &item_filter),
-        StatusFilter::Closed => collect_items(config, true, &item_filter),
-        StatusFilter::All => {
-            let mut open = collect_items(config, false, &item_filter);
-            let closed = collect_items(config, true, &item_filter);
-            open.extend(closed);
-            open
-        }
-    };
 
-    let label_counts = ui::count_by_many(&items, |item: &Item| item.labels().to_vec());
+    // Load all items to get complete label vocabulary
+    let all_items = storage::load_all_items(config);
+    let all_label_counts = ui::count_by_many(&all_items, |item: &Item| item.labels().to_vec());
 
-    if label_counts.is_empty() {
+    if all_label_counts.is_empty() {
         println!("{}", "No labels found.".dimmed());
         return Ok(());
     }
 
-    // Sort by count (descending), then alphabetically
-    let mut labels: Vec<_> = label_counts.into_iter().collect();
+    // Count only open items per label (for display and selectability)
+    let open_items = collect_items(config, false, &item_filter);
+    let open_label_counts = ui::count_by_many(&open_items, |item: &Item| item.labels().to_vec());
+
+    // Build label list: all labels with their open counts
+    let mut labels: Vec<(String, usize)> = all_label_counts
+        .keys()
+        .map(|label| {
+            let open_count = open_label_counts.get(label).copied().unwrap_or(0);
+            (label.clone(), open_count)
+        })
+        .collect();
+
+    // Sort by open count (descending), then alphabetically
     labels.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
     // Check interactive mode
     if !filter.interactive.should_run(config) {
-        // Non-interactive: print labels one per line
+        // Non-interactive: print labels one per line (all labels, including those with 0 open)
         for (label, _) in &labels {
             println!("{label}");
         }
         return Ok(());
     }
 
-    // Interactive selection
-    let options: Vec<String> = labels
+    // Interactive selection - show all labels but only allow selecting ones with open items
+    let selectable_indices: Vec<usize> = labels
         .iter()
-        .map(|(label, count)| format!("{label} ({count})"))
+        .enumerate()
+        .filter(|(_, (_, count))| *count > 0)
+        .map(|(i, _)| i)
         .collect();
 
-    let Some(selection) = ui::select_from_list("Select a label to filter by", &options)? else {
+    if selectable_indices.is_empty() {
+        println!("{}", "No labels with open items.".dimmed());
+        return Ok(());
+    }
+
+    // Build display options with visual distinction for non-selectable items
+    let options: Vec<String> = labels
+        .iter()
+        .map(|(label, count)| {
+            if *count > 0 {
+                format!("{label} ({count})")
+            } else {
+                format!("{label} (0)") // Will be shown dimmed in TUI
+            }
+        })
+        .collect();
+
+    let Some(selection) = ui::select_from_list_filtered(
+        "Select a label to filter by",
+        &options,
+        &selectable_indices,
+    )?
+    else {
         return Ok(()); // User cancelled
     };
     let selected_label = &labels[selection].0;
 
-    // Filter items with selected label
-    let filtered: Vec<&Item> = items
+    // Filter open items with selected label
+    let filtered: Vec<&Item> = open_items
         .iter()
         .filter(|item| item.labels().iter().any(|l| l == selected_label))
         .collect();
@@ -261,31 +288,36 @@ fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
 
 /// Lists all unique categories across items.
 fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
-    // Collect items based on status filter (respects --closed flag)
     let item_filter = ItemFilter {
         label: None,
         author: None,
     };
-    let items = match filter.status {
-        StatusFilter::Open => collect_items(config, false, &item_filter),
-        StatusFilter::Closed => collect_items(config, true, &item_filter),
-        StatusFilter::All => {
-            let mut open = collect_items(config, false, &item_filter);
-            let closed = collect_items(config, true, &item_filter);
-            open.extend(closed);
-            open
-        }
-    };
 
-    let category_counts = ui::count_by(&items, |item: &Item| item.category().map(String::from));
+    // Load all items to get complete category vocabulary
+    let all_items = storage::load_all_items(config);
+    let all_category_counts =
+        ui::count_by(&all_items, |item: &Item| item.category().map(String::from));
 
-    if category_counts.is_empty() {
+    if all_category_counts.is_empty() {
         println!("{}", "No items found.".dimmed());
         return Ok(());
     }
 
-    // Sort by count (descending), then alphabetically (None last)
-    let mut categories: Vec<_> = category_counts.into_iter().collect();
+    // Count only open items per category (for display and selectability)
+    let open_items = collect_items(config, false, &item_filter);
+    let open_category_counts =
+        ui::count_by(&open_items, |item: &Item| item.category().map(String::from));
+
+    // Build category list: all categories with their open counts
+    let mut categories: Vec<(Option<String>, usize)> = all_category_counts
+        .keys()
+        .map(|cat| {
+            let open_count = open_category_counts.get(cat).copied().unwrap_or(0);
+            (cat.clone(), open_count)
+        })
+        .collect();
+
+    // Sort by open count (descending), then alphabetically (None last)
     categories.sort_by(|a, b| {
         b.1.cmp(&a.1).then_with(|| match (&a.0, &b.0) {
             (None, None) => std::cmp::Ordering::Equal,
@@ -297,7 +329,7 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
 
     // Check interactive mode
     if !filter.interactive.should_run(config) {
-        // Non-interactive: print categories one per line
+        // Non-interactive: print categories one per line (all, including those with 0 open)
         for (category, _) in &categories {
             let name = category.as_deref().unwrap_or("(uncategorized)");
             println!("{name}");
@@ -305,7 +337,20 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
         return Ok(());
     }
 
-    // Interactive selection
+    // Interactive selection - show all categories but only allow selecting ones with open items
+    let selectable_indices: Vec<usize> = categories
+        .iter()
+        .enumerate()
+        .filter(|(_, (_, count))| *count > 0)
+        .map(|(i, _)| i)
+        .collect();
+
+    if selectable_indices.is_empty() {
+        println!("{}", "No categories with open items.".dimmed());
+        return Ok(());
+    }
+
+    // Build display options
     let options: Vec<String> = categories
         .iter()
         .map(|(cat, count)| {
@@ -314,13 +359,18 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
         })
         .collect();
 
-    let Some(selection) = ui::select_from_list("Select a category to filter by", &options)? else {
+    let Some(selection) = ui::select_from_list_filtered(
+        "Select a category to filter by",
+        &options,
+        &selectable_indices,
+    )?
+    else {
         return Ok(()); // User cancelled
     };
     let selected_category = &categories[selection].0;
 
-    // Filter items in selected category
-    let filtered: Vec<&Item> = items
+    // Filter open items in selected category
+    let filtered: Vec<&Item> = open_items
         .iter()
         .filter(|item| item.category().map(String::from) == *selected_category)
         .collect();
