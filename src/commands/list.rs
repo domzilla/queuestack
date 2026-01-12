@@ -223,9 +223,9 @@ fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
 
     // Check interactive mode
     if !filter.interactive.should_run(config) {
-        // Non-interactive: print labels one per line (all labels, including those with 0 open)
-        for (label, _) in &labels {
-            println!("{label}");
+        // Non-interactive: print labels with open count, one per line
+        for (label, count) in &labels {
+            println!("{label} ({count})");
         }
         return Ok(());
     }
@@ -319,10 +319,10 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
 
     // Check interactive mode
     if !filter.interactive.should_run(config) {
-        // Non-interactive: print categories one per line (all, including those with 0 open)
-        for (category, _) in &categories {
+        // Non-interactive: print categories with open count, one per line
+        for (category, count) in &categories {
             let name = category.as_deref().unwrap_or("(uncategorized)");
-            println!("{name}");
+            println!("{name} ({count})");
         }
         return Ok(());
     }
