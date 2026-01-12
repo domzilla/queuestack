@@ -100,8 +100,9 @@ impl TuiApp for SelectScreen {
                 let header_style = Style::default()
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD);
-                // Add prefix spacing to align with list items (which have "> " or "  " prefix)
-                let header_text = format!("  {header}");
+                // Add prefix spacing to align with list items:
+                // 1 char for list block border + 2 chars for "> " prefix = 3 spaces
+                let header_text = format!("   {header}");
                 let header_widget = Paragraph::new(header_text).style(header_style);
                 frame.render_widget(header_widget, chunks[1]);
             }
