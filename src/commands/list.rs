@@ -321,7 +321,7 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
     if !filter.interactive.should_run(config) {
         // Non-interactive: print categories with open count, one per line
         for (category, count) in &categories {
-            let name = category.as_deref().unwrap_or("(uncategorized)");
+            let name = category.as_deref().unwrap_or("Uncategorized");
             println!("{name} ({count})");
         }
         return Ok(());
@@ -339,7 +339,7 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
     let options: Vec<String> = categories
         .iter()
         .map(|(cat, count)| {
-            let name = cat.as_deref().unwrap_or("(uncategorized)");
+            let name = cat.as_deref().unwrap_or("Uncategorized");
             format!("{name} ({count})")
         })
         .collect();
