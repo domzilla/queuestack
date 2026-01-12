@@ -82,6 +82,57 @@ pub fn find_and_load(config: &Config, partial_id: &str) -> Result<LoadedItem> {
     Ok(LoadedItem { path, item })
 }
 
+/// Loads an item from a file path.
+///
+/// The path can be absolute or relative to the current working directory.
+pub fn load_from_file(file_path: &Path) -> Result<LoadedItem> {
+    let path = if file_path.is_absolute() {
+        file_path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .context("Failed to get current directory")?
+            .join(file_path)
+    };
+
+    if !path.exists() {
+        bail!("File not found: {}", file_path.display());
+    }
+
+    let item = Item::load(&path)?;
+    Ok(LoadedItem { path, item })
+}
+
+/// Specifies how to identify an item - either by ID or file path.
+#[derive(Debug, Clone)]
+pub enum ItemRef {
+    /// Partial ID match
+    Id(String),
+    /// Direct file path
+    File(std::path::PathBuf),
+}
+
+impl ItemRef {
+    /// Creates an `ItemRef` from optional id and file arguments.
+    ///
+    /// Returns an error if neither or both are specified.
+    pub fn from_options(id: Option<String>, file: Option<std::path::PathBuf>) -> Result<Self> {
+        match (id, file) {
+            (Some(id), None) => Ok(Self::Id(id)),
+            (None, Some(file)) => Ok(Self::File(file)),
+            (None, None) => bail!("Either --id or --file must be specified"),
+            (Some(_), Some(_)) => bail!("Cannot specify both --id and --file"),
+        }
+    }
+
+    /// Resolves the reference to a loaded item.
+    pub fn resolve(&self, config: &Config) -> Result<LoadedItem> {
+        match self {
+            Self::Id(id) => find_and_load(config, id),
+            Self::File(path) => load_from_file(path),
+        }
+    }
+}
+
 /// Finds an item by partial ID match.
 ///
 /// Returns the full path to the item file.
@@ -92,7 +143,8 @@ pub fn find_by_id(config: &Config, partial_id: &str) -> Result<PathBuf> {
         .filter(|path| {
             path.file_stem()
                 .and_then(|s| s.to_str())
-                .is_some_and(|name| name.to_uppercase().starts_with(&partial_upper))
+                .and_then(crate::id::extract_from_filename)
+                .is_some_and(|id| id.to_uppercase().contains(&partial_upper))
         })
         .collect();
 

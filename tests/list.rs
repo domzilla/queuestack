@@ -27,6 +27,7 @@ fn test_list_empty_project() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     // Should not error even if empty
@@ -64,6 +65,7 @@ fn test_list_shows_open_items() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     // Should succeed (output goes to stdout)
@@ -98,6 +100,7 @@ fn test_list_filter_by_label() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -124,6 +127,7 @@ fn test_list_sort_by_title() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -157,6 +161,7 @@ fn test_list_shows_closed_items() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -183,6 +188,7 @@ fn test_list_filter_by_author() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -209,6 +215,7 @@ fn test_list_sort_by_date() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -244,6 +251,7 @@ fn test_list_combined_filters() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -276,6 +284,7 @@ fn test_list_open_and_closed_flags_together() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -302,6 +311,7 @@ fn test_list_without_init() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -328,6 +338,7 @@ fn test_list_author_case_insensitive() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -353,6 +364,7 @@ fn test_list_nonexistent_label_filter() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     // Should succeed but return empty list
@@ -380,6 +392,7 @@ fn test_list_interactive_combinations() {
                 no_interactive: true,
             }, // Override interactive
             id: None,
+            file: None,
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -403,6 +416,7 @@ fn test_list_interactive_combinations() {
                 no_interactive: false,
             }, // Would show selector if in terminal
             id: None,
+            file: None,
         };
 
         // Works because we're not in a terminal, so interactive selection is skipped
@@ -427,6 +441,7 @@ fn test_list_interactive_combinations() {
                 no_interactive: false,
             },
             id: None,
+            file: None,
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -450,6 +465,7 @@ fn test_list_interactive_combinations() {
                 no_interactive: true,
             },
             id: None,
+            file: None,
         };
 
         commands::list(&filter).expect("list should succeed");

@@ -5,7 +5,7 @@ This document describes the internal architecture of qstack, a minimal task and 
 ## Design Principles
 
 1. **Plain text first** — Items are Markdown files that can be read, edited, and searched with standard Unix tools
-2. **Scriptable** — Every command works non-interactively via `--no-interactive` flag
+2. **Scriptable** — Every command works non-interactively via `--no-interactive` flag; items can be identified by `--id` or `--file` for shell completion and piping
 3. **Git-aware** — File operations use `git mv` when available to preserve history
 4. **Layered configuration** — Project settings override global defaults
 5. **Minimal dependencies** — Only what's necessary for the task
@@ -25,9 +25,9 @@ This document describes the internal architecture of qstack, a minimal task and 
 ┌─────────────────────────────────────────────────────────────────┐
 │                      Command Layer                              │
 │                   (src/commands/*.rs)                           │
-│  ┌─────┐ ┌─────┐ ┌──────┐ ┌────────┐ ┌──────┐ ┌───────┐         │
-│  │init │ │ new │ │ list │ │ search │ │update│ │ close │ ...     │
-│  └─────┘ └─────┘ └──────┘ └────────┘ └──────┘ └───────┘         │
+│  ┌─────┐ ┌─────┐ ┌──────┐ ┌────────┐ ┌──────┐ ┌───────┐ ┌──────┐│
+│  │init │ │ new │ │ list │ │ search │ │update│ │ close │ │attach││
+│  └─────┘ └─────┘ └──────┘ └────────┘ └──────┘ └───────┘ └──────┘│
 └─────────────────────────────────────────────────────────────────┘
                               │
               ┌───────────────┼───────────────┐
@@ -223,6 +223,27 @@ pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) ->
 
 Uses `walkdir` crate for recursive directory traversal with depth limits.
 
+#### `ItemRef` — Flexible Item Identification
+
+Commands that operate on a single item accept either `--id` or `--file`:
+
+```rust
+pub enum ItemRef {
+    Id(String),
+    File(PathBuf),
+}
+
+impl ItemRef {
+    pub fn from_options(id: Option<String>, file: Option<PathBuf>) -> Result<Self>;
+    pub fn resolve(&self, config: &Config) -> Result<LoadedItem>;
+}
+```
+
+This enables:
+- Shell tab completion for file paths
+- Piping from `qstack list` output
+- Working without knowing item IDs
+
 #### Attachment Handling
 
 Attachments follow the naming convention: `{item_id}-Attachment-{counter}-{name}.{ext}`
@@ -370,13 +391,11 @@ pub fn execute(filter: ListFilter, interactive: InteractiveArgs) -> Result<()> {
 |---------|------|---------------|
 | `init` | `init.rs` | Creates `.qstack` and stack directory |
 | `new` | `new.rs` | Creates item, optionally launches wizard |
-| `list` | `list.rs` | Lists with filters, sorting, selection |
+| `list` | `list.rs` | Lists items, labels (`--labels`), categories (`--categories`), attachments (`--attachments`), metadata (`--meta`) |
 | `search` | `search.rs` | Query matching with full-text option |
 | `update` | `update.rs` | Updates metadata, renames file |
 | `close` | `close.rs` | Archives item (and `reopen`) |
-| `labels` | `labels.rs` | Lists labels with counts |
-| `categories` | `categories.rs` | Lists categories with counts |
-| `attachments` | `attachments.rs` | List/add/remove attachments |
+| `attachments` | `attach.rs` | Add/remove attachments |
 | `setup` | `setup.rs` | One-time config and completions |
 | `completions` | `completions.rs` | Generate shell completion scripts |
 

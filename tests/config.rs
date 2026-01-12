@@ -303,7 +303,7 @@ fn test_custom_archive_directory() {
     std::fs::create_dir_all(env.stack_path().join("done")).expect("create archive dir");
 
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     let done_dir = env.stack_path().join("done");
     let files: Vec<_> = std::fs::read_dir(&done_dir)

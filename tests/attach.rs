@@ -32,7 +32,8 @@ fn test_attach_add_file() {
 
     // Attach the file
     let args = AttachAddArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         sources: vec![test_file.to_string_lossy().to_string()],
     };
     commands::attach_add(&args).expect("attach add should succeed");
@@ -68,7 +69,8 @@ fn test_attach_add_url() {
     let item_id = "260101-AAA";
 
     let args = AttachAddArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         sources: vec!["https://github.com/user/repo/issues/42".to_string()],
     };
     commands::attach_add(&args).expect("attach add URL should succeed");
@@ -101,7 +103,8 @@ fn test_attach_add_multiple() {
     let file2 = env.create_test_file("file2.txt", "content 2");
 
     let args = AttachAddArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         sources: vec![
             file1.to_string_lossy().to_string(),
             file2.to_string_lossy().to_string(),
@@ -126,7 +129,8 @@ fn test_attach_add_counter_increments() {
     // Add first file
     let file1 = env.create_test_file("first.txt", "content 1");
     let args1 = AttachAddArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         sources: vec![file1.to_string_lossy().to_string()],
     };
     commands::attach_add(&args1).unwrap();
@@ -134,7 +138,8 @@ fn test_attach_add_counter_increments() {
     // Add second file
     let file2 = env.create_test_file("second.txt", "content 2");
     let args2 = AttachAddArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         sources: vec![file2.to_string_lossy().to_string()],
     };
     commands::attach_add(&args2).unwrap();
@@ -166,7 +171,8 @@ fn test_attach_add_nonexistent_file() {
     create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
 
     let args = AttachAddArgs {
-        id: "260101-AAA".to_string(),
+        id: Some("260101-AAA".to_string()),
+        file: None,
         sources: vec!["/nonexistent/file.txt".to_string()],
     };
     // Should succeed but with warning, not adding the file
@@ -187,7 +193,8 @@ fn test_attach_add_nonexistent_item() {
     commands::init().unwrap();
 
     let args = AttachAddArgs {
-        id: "NONEXISTENT".to_string(),
+        id: Some("NONEXISTENT".to_string()),
+        file: None,
         sources: vec!["https://example.com".to_string()],
     };
     let result = commands::attach_add(&args);
@@ -209,7 +216,8 @@ fn test_attach_add_to_closed_item_fails() {
     .unwrap();
 
     let args = AttachAddArgs {
-        id: "260101-AAA".to_string(),
+        id: Some("260101-AAA".to_string()),
+        file: None,
         sources: vec!["https://example.com".to_string()],
     };
     let result = commands::attach_add(&args);
@@ -225,7 +233,8 @@ fn test_attach_add_empty_sources_fails() {
     create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
 
     let args = AttachAddArgs {
-        id: "260101-AAA".to_string(),
+        id: Some("260101-AAA".to_string()),
+        file: None,
         sources: vec![],
     };
     let result = commands::attach_add(&args);
@@ -242,7 +251,8 @@ fn test_attach_add_to_item_in_category() {
 
     let test_file = env.create_test_file("test.txt", "content");
     let args = AttachAddArgs {
-        id: "260101-AAA".to_string(),
+        id: Some("260101-AAA".to_string()),
+        file: None,
         sources: vec![test_file.to_string_lossy().to_string()],
     };
     commands::attach_add(&args).expect("attach add in category should succeed");
@@ -290,7 +300,8 @@ fn test_attach_remove_single() {
     );
 
     let args = AttachRemoveArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         indices: vec![1], // Remove the file attachment
     };
     commands::attach_remove(&args).expect("attach remove should succeed");
@@ -321,7 +332,8 @@ fn test_attach_remove_multiple() {
     );
 
     let args = AttachRemoveArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         indices: vec![1, 3], // Remove first and third
     };
     commands::attach_remove(&args).expect("attach remove multiple should succeed");
@@ -356,7 +368,8 @@ fn test_attach_remove_url_only_updates_frontmatter() {
     );
 
     let args = AttachRemoveArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         indices: vec![1],
     };
     commands::attach_remove(&args).expect("remove URL should succeed");
@@ -389,7 +402,8 @@ fn test_attach_remove_invalid_index() {
     );
 
     let args = AttachRemoveArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         indices: vec![5], // Only 1 attachment exists
     };
     let result = commands::attach_remove(&args);
@@ -405,7 +419,8 @@ fn test_attach_remove_from_empty_item() {
     create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
 
     let args = AttachRemoveArgs {
-        id: "260101-AAA".to_string(),
+        id: Some("260101-AAA".to_string()),
+        file: None,
         indices: vec![1],
     };
     let result = commands::attach_remove(&args);
@@ -428,6 +443,7 @@ fn make_attachments_filter(id: &str) -> ListFilter {
             no_interactive: true,
         },
         id: Some(id.to_string()),
+        file: None,
     }
 }
 
@@ -502,7 +518,8 @@ fn test_update_category_moves_attachments() {
 
     // Move to category
     let args = UpdateArgs {
-        id: item_id.to_string(),
+        id: Some(item_id.to_string()),
+        file: None,
         title: None,
         labels: vec![],
         category: Some("bugs".to_string()),

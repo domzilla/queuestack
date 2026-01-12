@@ -129,19 +129,32 @@ qstack list --label bug --author "John"        # Filter items
 qstack list --labels                           # List all unique labels
 qstack list --categories                       # List all unique categories
 qstack list --attachments --id 260109          # List attachments for item
+qstack list --attachments --file qstack/260109-*.md  # Use file path instead of ID
 qstack list --meta --id 260109                 # Show item metadata/frontmatter
 qstack search "query"                          # Search and select
 qstack search "bug" --full-text --no-interactive  # Full-text search
 qstack update --id 260109 --title "New Title"  # Update item
 qstack update --id 26 --label urgent           # Partial ID match
+qstack update --file path/to/item.md --title X # Update by file path
 qstack close --id 260109                       # Archive item
+qstack close --file qstack/260109-*.md         # Close by file path
 qstack reopen --id 260109                      # Restore item
+qstack reopen --file qstack/archive/260109-*.md  # Reopen by file path
 qstack attachments add --id 260109 file.png    # Add file attachment
+qstack attachments add --file path/to/item.md file.png  # Add by file path
 qstack attachments add --id 260109 https://... # Add URL attachment
 qstack attachments remove --id 260109 1        # Remove by index
 qstack setup                                   # One-time setup
 qstack completions zsh                         # Generate completions
 ```
+
+### --file Option (Scriptability)
+Commands that accept `--id` also accept `--file` as an alternative. This enables:
+- Shell tab completion for file paths
+- Piping file paths from other commands (e.g., `qstack list | xargs -I{} qstack list --meta --file {}`)
+- Working with items without knowing their ID
+
+The `--id` and `--file` options are mutually exclusive.
 
 ## Non-Interactive Output Format
 All non-interactive outputs (`--no-interactive` flag) must be **plain, scriptable, line-separated lists**:

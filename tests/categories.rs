@@ -27,6 +27,7 @@ fn test_categories_empty_project() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -55,6 +56,7 @@ fn test_categories_shows_unique_categories() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -93,6 +95,7 @@ fn test_categories_includes_archived_items() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     // Should include categories from both open and archived items
@@ -117,6 +120,7 @@ fn test_categories_without_init() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);

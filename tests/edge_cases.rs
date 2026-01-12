@@ -228,7 +228,8 @@ fn test_partial_id_matching() {
 
     // Update with partial ID
     let args = UpdateArgs {
-        id: "2601".to_string(), // Should match "260101-ABCD"
+        id: Some("2601".to_string()), // Should match "260101-ABCD"
+        file: None,
         title: Some("Updated".to_string()),
         labels: vec![],
         category: None,
@@ -249,7 +250,8 @@ fn test_ambiguous_partial_id() {
 
     // Ambiguous ID should fail
     let args = UpdateArgs {
-        id: "2601".to_string(), // Matches both items
+        id: Some("2601".to_string()), // Matches both items
+        file: None,
         title: Some("Updated".to_string()),
         labels: vec![],
         category: None,

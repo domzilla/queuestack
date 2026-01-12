@@ -5,6 +5,8 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
+use std::path::PathBuf;
+
 use anyhow::{bail, Result};
 use owo_colors::OwoColorize;
 
@@ -12,13 +14,15 @@ use crate::{config::Config, item::is_url, storage, ui};
 
 /// Arguments for the attach add subcommand
 pub struct AttachAddArgs {
-    pub id: String,
+    pub id: Option<String>,
+    pub file: Option<PathBuf>,
     pub sources: Vec<String>,
 }
 
 /// Arguments for the attach remove subcommand
 pub struct AttachRemoveArgs {
-    pub id: String,
+    pub id: Option<String>,
+    pub file: Option<PathBuf>,
     pub indices: Vec<usize>,
 }
 
@@ -30,8 +34,9 @@ pub fn execute_add(args: &AttachAddArgs) -> Result<()> {
 
     let config = Config::load()?;
 
-    // Find and load the item
-    let storage::LoadedItem { path, mut item } = storage::find_and_load(&config, &args.id)?;
+    // Resolve item from --id or --file
+    let item_ref = storage::ItemRef::from_options(args.id.clone(), args.file.clone())?;
+    let storage::LoadedItem { path, mut item } = item_ref.resolve(&config)?;
 
     // Check item is not closed
     if item.status() == crate::item::Status::Closed {
@@ -59,8 +64,9 @@ pub fn execute_remove(args: &AttachRemoveArgs) -> Result<()> {
 
     let config = Config::load()?;
 
-    // Find and load the item
-    let storage::LoadedItem { path, mut item } = storage::find_and_load(&config, &args.id)?;
+    // Resolve item from --id or --file
+    let item_ref = storage::ItemRef::from_options(args.id.clone(), args.file.clone())?;
+    let storage::LoadedItem { path, mut item } = item_ref.resolve(&config)?;
 
     let attachment_count = item.attachments().len();
     if attachment_count == 0 {
@@ -77,10 +83,7 @@ pub fn execute_remove(args: &AttachRemoveArgs) -> Result<()> {
     for &idx in &args.indices {
         if idx == 0 || idx > attachment_count {
             bail!(
-                "Invalid attachment index: {}. Item has {} attachment(s). Use 'qstack attachments --id {}' to see the list.",
-                idx,
-                attachment_count,
-                args.id
+                "Invalid attachment index: {idx}. Item has {attachment_count} attachment(s). Use 'qstack list --attachments --id <ID>' to see the list."
             );
         }
     }

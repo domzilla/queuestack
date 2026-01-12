@@ -5,18 +5,20 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 
 use crate::{config::Config, item::Status, storage, ui};
 
 /// Executes the close command.
-pub fn execute_close(id: &str) -> Result<()> {
-    execute_status_change(id, StatusChange::Close)
+pub fn execute_close(id: Option<String>, file: Option<PathBuf>) -> Result<()> {
+    execute_status_change(id, file, StatusChange::Close)
 }
 
 /// Executes the reopen command.
-pub fn execute_reopen(id: &str) -> Result<()> {
-    execute_status_change(id, StatusChange::Reopen)
+pub fn execute_reopen(id: Option<String>, file: Option<PathBuf>) -> Result<()> {
+    execute_status_change(id, file, StatusChange::Reopen)
 }
 
 /// Specifies the type of status change operation.
@@ -27,11 +29,16 @@ enum StatusChange {
 }
 
 /// Unified implementation for close/reopen operations.
-fn execute_status_change(id: &str, operation: StatusChange) -> Result<()> {
+fn execute_status_change(
+    id: Option<String>,
+    file: Option<PathBuf>,
+    operation: StatusChange,
+) -> Result<()> {
     let config = Config::load()?;
 
-    // Find and load the item
-    let storage::LoadedItem { path, mut item } = storage::find_and_load(&config, id)?;
+    // Resolve item from --id or --file
+    let item_ref = storage::ItemRef::from_options(id, file)?;
+    let storage::LoadedItem { path, mut item } = item_ref.resolve(&config)?;
 
     // Determine operation parameters
     let (target_status, verb, state_name) = match operation {

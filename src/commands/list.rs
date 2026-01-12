@@ -7,6 +7,7 @@
 //! Licensed under the MIT License.
 
 use std::cmp::Reverse;
+use std::path::PathBuf;
 
 use anyhow::Result;
 
@@ -59,6 +60,8 @@ pub struct ListFilter {
     pub interactive: InteractiveArgs,
     /// Item ID (required for --attachments and --meta modes)
     pub id: Option<String>,
+    /// Item file path (alternative to id)
+    pub file: Option<PathBuf>,
 }
 
 impl Default for ListFilter {
@@ -71,6 +74,7 @@ impl Default for ListFilter {
             sort: SortBy::Id,
             interactive: InteractiveArgs::default(),
             id: None,
+            file: None,
         }
     }
 }
@@ -377,13 +381,10 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
 
 /// Lists attachments for a specific item.
 fn execute_attachments(filter: &ListFilter, config: &Config) -> Result<()> {
-    let id = filter
-        .id
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("--id is required with --attachments"))?;
+    let item_ref = storage::ItemRef::from_options(filter.id.clone(), filter.file.clone())?;
 
     // Find and load the item
-    let storage::LoadedItem { item, .. } = storage::find_and_load(config, id)?;
+    let storage::LoadedItem { item, .. } = item_ref.resolve(config)?;
 
     let attachments = item.attachments();
 
@@ -402,13 +403,10 @@ fn execute_attachments(filter: &ListFilter, config: &Config) -> Result<()> {
 
 /// Shows metadata/frontmatter for a specific item.
 fn execute_meta(filter: &ListFilter, config: &Config) -> Result<()> {
-    let id = filter
-        .id
-        .as_ref()
-        .ok_or_else(|| anyhow::anyhow!("--id is required with --meta"))?;
+    let item_ref = storage::ItemRef::from_options(filter.id.clone(), filter.file.clone())?;
 
     // Find and load the item
-    let storage::LoadedItem { item, .. } = storage::find_and_load(config, id)?;
+    let storage::LoadedItem { item, .. } = item_ref.resolve(config)?;
 
     // Print frontmatter fields
     println!("id: {}", item.id());

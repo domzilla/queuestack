@@ -623,3 +623,194 @@ fn test_output_ends_with_newline() {
         );
     }
 }
+
+// =============================================================================
+// --file Option Tests (Alternative to --id)
+// =============================================================================
+
+#[test]
+fn test_list_attachments_with_file_option() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    let item_path = create_test_item_with_attachments(
+        &env,
+        "260101-AAA",
+        "Task",
+        "open",
+        &["260101-AAA-Attachment-1-screenshot.png"],
+        None,
+    );
+
+    // Use --file instead of --id
+    qstack_cmd(&env)
+        .args([
+            "list",
+            "--attachments",
+            "--file",
+            item_path.to_str().unwrap(),
+        ])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "260101-AAA-Attachment-1-screenshot.png",
+        ));
+}
+
+#[test]
+fn test_list_meta_with_file_option() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    let item_path = create_test_item(
+        &env,
+        "260101-AAA",
+        "Test Task",
+        "open",
+        &["bug"],
+        Some("bugs"),
+    );
+
+    // Use --file instead of --id
+    qstack_cmd(&env)
+        .args(["list", "--meta", "--file", item_path.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("id: 260101-AAA"))
+        .stdout(predicate::str::contains("title: Test Task"))
+        .stdout(predicate::str::contains("labels: bug"))
+        .stdout(predicate::str::contains("category: bugs"));
+}
+
+#[test]
+fn test_update_with_file_option() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    let item_path = create_test_item(&env, "260101-AAA", "Original Title", "open", &[], None);
+
+    // Update using --file
+    qstack_cmd(&env)
+        .args([
+            "update",
+            "--file",
+            item_path.to_str().unwrap(),
+            "--title",
+            "New Title",
+        ])
+        .assert()
+        .success();
+
+    // Verify the update took effect
+    let content = fs::read_to_string(env.stack_path().join("260101-AAA-new-title.md")).unwrap();
+    assert!(content.contains("title: New Title"));
+}
+
+#[test]
+fn test_close_with_file_option() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    let item_path = create_test_item(&env, "260101-AAA", "Task to Close", "open", &[], None);
+
+    // Close using --file
+    qstack_cmd(&env)
+        .args(["close", "--file", item_path.to_str().unwrap()])
+        .assert()
+        .success();
+
+    // Verify item was moved to archive
+    let archive_files: Vec<_> = fs::read_dir(env.archive_path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
+    assert_eq!(archive_files.len(), 1, "Item should be in archive");
+}
+
+#[test]
+fn test_reopen_with_file_option() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    // Create and close an item
+    create_test_item(&env, "260101-AAA", "Task to Reopen", "open", &[], None);
+    qstack_cmd(&env)
+        .args(["close", "--id", "260101"])
+        .assert()
+        .success();
+
+    // Find the archived file path
+    let archived_path = env.archive_path().join("260101-AAA-task-to-reopen.md");
+
+    // Reopen using --file
+    qstack_cmd(&env)
+        .args(["reopen", "--file", archived_path.to_str().unwrap()])
+        .assert()
+        .success();
+
+    // Verify item was moved back to stack
+    let stack_files: Vec<_> = fs::read_dir(env.stack_path())
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
+        .collect();
+    assert_eq!(stack_files.len(), 1, "Item should be back in stack");
+}
+
+#[test]
+fn test_file_and_id_mutually_exclusive() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    let item_path = create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
+
+    // Both --id and --file should fail
+    qstack_cmd(&env)
+        .args([
+            "list",
+            "--meta",
+            "--id",
+            "260101",
+            "--file",
+            item_path.to_str().unwrap(),
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("cannot be used with"));
+}
+
+#[test]
+fn test_file_option_relative_path() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    create_test_item(&env, "260101-AAA", "Task", "open", &["bug"], None);
+
+    // Use relative path from project directory
+    qstack_cmd(&env)
+        .args(["list", "--meta", "--file", "qstack/260101-AAA-task.md"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("id: 260101-AAA"))
+        .stdout(predicate::str::contains("labels: bug"));
+}
+
+#[test]
+fn test_file_option_nonexistent_file() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().expect("init");
+
+    qstack_cmd(&env)
+        .args(["list", "--meta", "--file", "qstack/nonexistent-file.md"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not found").or(predicate::str::contains("No such file")));
+}

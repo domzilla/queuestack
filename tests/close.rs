@@ -22,7 +22,7 @@ fn test_close_moves_to_archive() {
 
     create_test_item(&env, "260101-AAA", "Task to Close", "open", &[], None);
 
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     let stack_files = env.list_stack_files();
     assert!(stack_files.is_empty(), "Stack should be empty");
@@ -46,7 +46,7 @@ fn test_close_item_with_category() {
 
     create_test_item(&env, "260101-AAA", "Bug Task", "open", &[], Some("bugs"));
 
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     let category_files = env.list_category_files("bugs");
     assert!(category_files.is_empty(), "Category should be empty");
@@ -61,7 +61,7 @@ fn test_close_nonexistent_id() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let result = execute_close("999999");
+    let result = execute_close(Some("999999".to_string()), None);
     assert!(result.is_err(), "close with nonexistent ID should fail");
 }
 
@@ -72,10 +72,10 @@ fn test_close_already_closed() {
     commands::init().expect("init should succeed");
 
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
-    execute_close("260101").expect("first close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("first close should succeed");
 
     // Try to close again
-    let result = execute_close("260101");
+    let result = execute_close(Some("260101".to_string()), None);
     assert!(result.is_err(), "closing already closed item should fail");
 }
 
@@ -88,7 +88,7 @@ fn test_close_with_partial_id() {
     create_test_item(&env, "260101-ABCDEFG", "Task", "open", &[], None);
 
     // Close with minimal partial ID
-    let result = execute_close("2601");
+    let result = execute_close(Some("2601".to_string()), None);
     assert!(result.is_ok(), "close with partial ID should succeed");
 
     let archive_files = env.list_archive_files();
@@ -101,7 +101,7 @@ fn test_close_nonexistent_item() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let result = execute_close("nonexistent");
+    let result = execute_close(Some("nonexistent".to_string()), None);
     assert!(result.is_err(), "close nonexistent item should fail");
 }
 
@@ -111,7 +111,7 @@ fn test_close_without_init() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     // Don't call init
 
-    let result = execute_close("260101");
+    let result = execute_close(Some("260101".to_string()), None);
     assert!(result.is_err(), "close without init should fail");
 }
 
@@ -127,10 +127,10 @@ fn test_reopen_moves_from_archive() {
 
     // Create item and close it
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     // Now reopen
-    execute_reopen("260101").expect("reopen should succeed");
+    execute_reopen(Some("260101".to_string()), None).expect("reopen should succeed");
 
     let stack_files = env.list_stack_files();
     assert_eq!(stack_files.len(), 1, "Stack should have one item");
@@ -151,10 +151,10 @@ fn test_reopen_restores_category() {
 
     // Create item with category and close it
     create_test_item(&env, "260101-AAA", "Bug Task", "open", &[], Some("bugs"));
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     // Reopen - should restore to category
-    execute_reopen("260101").expect("reopen should succeed");
+    execute_reopen(Some("260101".to_string()), None).expect("reopen should succeed");
 
     let category_files = env.list_category_files("bugs");
     assert_eq!(category_files.len(), 1, "Item should be back in category");
@@ -169,7 +169,7 @@ fn test_reopen_already_open() {
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
     // Try to reopen an already open item
-    let result = execute_reopen("260101");
+    let result = execute_reopen(Some("260101".to_string()), None);
     assert!(result.is_err(), "reopening already open item should fail");
 }
 
@@ -180,10 +180,10 @@ fn test_reopen_with_partial_id() {
     commands::init().expect("init should succeed");
 
     create_test_item(&env, "260101-ABCDEFG", "Task", "open", &[], None);
-    execute_close("260101").expect("close should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
 
     // Reopen with minimal partial ID
-    let result = execute_reopen("2601");
+    let result = execute_reopen(Some("2601".to_string()), None);
     assert!(result.is_ok(), "reopen with partial ID should succeed");
 
     let stack_files = env.list_stack_files();
@@ -196,7 +196,7 @@ fn test_reopen_nonexistent_item() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let result = execute_reopen("nonexistent");
+    let result = execute_reopen(Some("nonexistent".to_string()), None);
     assert!(result.is_err(), "reopen nonexistent item should fail");
 }
 
@@ -206,7 +206,7 @@ fn test_reopen_without_init() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     // Don't call init
 
-    let result = execute_reopen("260101");
+    let result = execute_reopen(Some("260101".to_string()), None);
     assert!(result.is_err(), "reopen without init should fail");
 }
 
@@ -225,8 +225,8 @@ fn test_close_and_reopen_preserves_labels() {
         None,
     );
 
-    execute_close("260101").expect("close should succeed");
-    execute_reopen("260101").expect("reopen should succeed");
+    execute_close(Some("260101".to_string()), None).expect("close should succeed");
+    execute_reopen(Some("260101".to_string()), None).expect("reopen should succeed");
 
     let item = env.find_item_by_id("260101").expect("item should exist");
     let content = env.read_item(&item);
@@ -261,7 +261,7 @@ fn test_close_moves_attachments_to_archive() {
     assert_eq!(env.list_attachment_files(item_id).len(), 1);
 
     // Close the item
-    execute_close(item_id).expect("close should succeed");
+    execute_close(Some(item_id.to_string()), None).expect("close should succeed");
 
     // Verify attachment moved to archive
     assert!(
@@ -292,8 +292,8 @@ fn test_reopen_moves_attachments_from_archive() {
     );
 
     // Close and then reopen
-    execute_close(item_id).expect("close should succeed");
-    execute_reopen(item_id).expect("reopen should succeed");
+    execute_close(Some(item_id.to_string()), None).expect("close should succeed");
+    execute_reopen(Some(item_id.to_string()), None).expect("reopen should succeed");
 
     // Verify attachment is back in stack
     assert_eq!(
@@ -323,7 +323,7 @@ fn test_close_item_with_category_moves_attachments() {
         Some("bugs"),
     );
 
-    execute_close(item_id).expect("close should succeed");
+    execute_close(Some(item_id.to_string()), None).expect("close should succeed");
 
     assert_eq!(
         env.list_archive_attachment_files(item_id).len(),

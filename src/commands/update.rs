@@ -5,6 +5,8 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
+use std::path::PathBuf;
+
 use anyhow::Result;
 use owo_colors::OwoColorize;
 
@@ -12,7 +14,8 @@ use crate::{config::Config, storage, ui};
 
 /// Arguments for the update command
 pub struct UpdateArgs {
-    pub id: String,
+    pub id: Option<String>,
+    pub file: Option<PathBuf>,
     pub title: Option<String>,
     pub labels: Vec<String>,
     pub category: Option<String>,
@@ -23,8 +26,9 @@ pub struct UpdateArgs {
 pub fn execute(args: UpdateArgs) -> Result<()> {
     let config = Config::load()?;
 
-    // Find and load the item
-    let storage::LoadedItem { mut path, mut item } = storage::find_and_load(&config, &args.id)?;
+    // Resolve item from --id or --file
+    let item_ref = storage::ItemRef::from_options(args.id, args.file)?;
+    let storage::LoadedItem { mut path, mut item } = item_ref.resolve(&config)?;
 
     let mut changed = false;
     let old_filename = item.filename();

@@ -19,7 +19,8 @@ fn test_update_title() {
     create_test_item(&env, "260101-AAA", "Old Title", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: Some("New Title".to_string()),
         labels: vec![],
         category: None,
@@ -46,7 +47,8 @@ fn test_update_add_labels() {
     create_test_item(&env, "260101-AAA", "Task", "open", &["existing"], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec!["new-label".to_string()],
         category: None,
@@ -73,7 +75,8 @@ fn test_update_move_to_category() {
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec![],
         category: Some("bugs".to_string()),
@@ -95,7 +98,8 @@ fn test_update_clear_category() {
     create_test_item(&env, "260101-AAA", "Task", "open", &[], Some("bugs"));
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec![],
         category: None,
@@ -118,7 +122,8 @@ fn test_update_nonexistent_id() {
     commands::init().expect("init should succeed");
 
     let args = UpdateArgs {
-        id: "999999".to_string(),
+        id: Some("999999".to_string()),
+        file: None,
         title: Some("New Title".to_string()),
         labels: vec![],
         category: None,
@@ -138,7 +143,8 @@ fn test_update_multiple_labels_at_once() {
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec![
             "bug".to_string(),
@@ -167,7 +173,8 @@ fn test_update_title_and_category_combined() {
     create_test_item(&env, "260101-AAA", "Old Title", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: Some("New Title".to_string()),
         labels: vec![],
         category: Some("bugs".to_string()),
@@ -202,7 +209,8 @@ fn test_update_title_and_labels_combined() {
     );
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: Some("New Title".to_string()),
         labels: vec!["new-label".to_string()],
         category: None,
@@ -233,7 +241,8 @@ fn test_update_all_fields_combined() {
     create_test_item(&env, "260101-AAA", "Original", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: Some("Updated Title".to_string()),
         labels: vec!["label1".to_string(), "label2".to_string()],
         category: Some("features".to_string()),
@@ -261,7 +270,8 @@ fn test_update_category_then_clear() {
 
     // First, move to category
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec![],
         category: Some("bugs".to_string()),
@@ -271,7 +281,8 @@ fn test_update_category_then_clear() {
 
     // Then clear category
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: None,
         labels: vec![],
         category: None,
@@ -295,7 +306,8 @@ fn test_update_with_full_id() {
     create_test_item(&env, "260101-ABCDEFG", "Task", "open", &[], None);
 
     let args = UpdateArgs {
-        id: "260101-ABCDEFG".to_string(), // Full ID
+        id: Some("260101-ABCDEFG".to_string()), // Full ID
+        file: None,
         title: Some("Updated".to_string()),
         labels: vec![],
         category: None,
@@ -313,7 +325,8 @@ fn test_update_without_init() {
     // Don't call init
 
     let args = UpdateArgs {
-        id: "260101".to_string(),
+        id: Some("260101".to_string()),
+        file: None,
         title: Some("New".to_string()),
         labels: vec![],
         category: None,

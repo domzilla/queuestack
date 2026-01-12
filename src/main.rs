@@ -253,27 +253,41 @@ Special modes:\n  \
         )]
         categories: bool,
 
-        /// List attachments for an item (requires --id)
+        /// List attachments for an item (requires --id or --file)
         #[arg(
             long,
             conflicts_with_all = ["labels", "categories", "meta"],
-            requires = "id",
+            requires = "item_ref",
             help = "List attachments for a specific item"
         )]
         attachments: bool,
 
-        /// Show metadata/frontmatter for an item (requires --id)
+        /// Show metadata/frontmatter for an item (requires --id or --file)
         #[arg(
             long,
             conflicts_with_all = ["labels", "categories", "attachments"],
-            requires = "id",
+            requires = "item_ref",
             help = "Show metadata for a specific item"
         )]
         meta: bool,
 
-        /// Item ID (required with --attachments or --meta)
-        #[arg(long, help = "Item ID (partial match supported)")]
+        /// Item ID (partial match supported)
+        #[arg(
+            long,
+            conflicts_with = "file",
+            group = "item_ref",
+            help = "Item ID (partial match supported)"
+        )]
         id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            group = "item_ref",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
     },
 
     /// Search for items and interactively select one to open
@@ -345,10 +359,20 @@ To modify labels directly, edit the Markdown file.",
         /// Item ID (partial match supported)
         #[arg(
             long,
-            required = true,
+            conflicts_with = "file",
+            required_unless_present = "file",
             help = "Item ID to update (partial match supported)"
         )]
-        id: String,
+        id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            required_unless_present = "id",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
 
         /// New title
         #[arg(long, help = "New title (renames file if changed)")]
@@ -385,10 +409,20 @@ Closed items are excluded from 'qstack list' by default (use --closed to see the
         /// Item ID (partial match supported)
         #[arg(
             long,
-            required = true,
+            conflicts_with = "file",
+            required_unless_present = "file",
             help = "Item ID to close (partial match supported)"
         )]
-        id: String,
+        id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            required_unless_present = "id",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
     },
 
     /// Reopen a closed item (move from archive)
@@ -408,10 +442,20 @@ preserve history.",
         /// Item ID (partial match supported)
         #[arg(
             long,
-            required = true,
+            conflicts_with = "file",
+            required_unless_present = "file",
             help = "Item ID to reopen (partial match supported)"
         )]
-        id: String,
+        id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            required_unless_present = "id",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
     },
 
     /// Manage item attachments (add, remove)
@@ -499,8 +543,22 @@ enum AttachmentsAction {
     )]
     Add {
         /// Item ID (partial match supported)
-        #[arg(long, required = true, help = "Item ID (partial match supported)")]
-        id: String,
+        #[arg(
+            long,
+            conflicts_with = "file",
+            required_unless_present = "file",
+            help = "Item ID (partial match supported)"
+        )]
+        id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            required_unless_present = "id",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
 
         /// Files or URLs to attach
         #[arg(required = true, help = "Files or URLs to attach")]
@@ -513,13 +571,27 @@ enum AttachmentsAction {
             h!("Examples:"), "\n  ",
             c!("qstack attachments remove --id "), a!("260109-0A2B3C4"), " ", a!("1"), "\n  ",
             c!("qstack attachments remove --id "), a!("260109-0A2B3C4"), " ", a!("1 2 3"), "    Remove multiple\n\n",
-            h!("Note:"), " Use ", c!("qstack attachments list --id <ID>"), " to see indices."
+            h!("Note:"), " Use ", c!("qstack list --attachments --id <ID>"), " to see indices."
         )
     )]
     Remove {
         /// Item ID (partial match supported)
-        #[arg(long, required = true, help = "Item ID (partial match supported)")]
-        id: String,
+        #[arg(
+            long,
+            conflicts_with = "file",
+            required_unless_present = "file",
+            help = "Item ID (partial match supported)"
+        )]
+        id: Option<String>,
+
+        /// Item file path (alternative to --id)
+        #[arg(
+            long,
+            conflicts_with = "id",
+            required_unless_present = "id",
+            help = "Item file path"
+        )]
+        file: Option<std::path::PathBuf>,
 
         /// Attachment indices to remove (1-based)
         #[arg(required = true, help = "Attachment indices to remove (1-based)")]
@@ -572,6 +644,7 @@ fn run() -> Result<()> {
             attachments,
             meta,
             id,
+            file,
         } => {
             let mode = if labels {
                 ListMode::Labels
@@ -600,6 +673,7 @@ fn run() -> Result<()> {
                     no_interactive,
                 },
                 id,
+                file,
             })
         }
 
@@ -621,28 +695,30 @@ fn run() -> Result<()> {
 
         Commands::Update {
             id,
+            file,
             title,
             label,
             category,
             no_category,
         } => commands::update(UpdateArgs {
             id,
+            file,
             title,
             labels: label,
             category,
             clear_category: no_category,
         }),
 
-        Commands::Close { id } => commands::execute_close(&id),
+        Commands::Close { id, file } => commands::execute_close(id, file),
 
-        Commands::Reopen { id } => commands::execute_reopen(&id),
+        Commands::Reopen { id, file } => commands::execute_reopen(id, file),
 
         Commands::Attachments { action } => match action {
-            AttachmentsAction::Add { id, sources } => {
-                commands::attach_add(&AttachAddArgs { id, sources })
+            AttachmentsAction::Add { id, file, sources } => {
+                commands::attach_add(&AttachAddArgs { id, file, sources })
             }
-            AttachmentsAction::Remove { id, indices } => {
-                commands::attach_remove(&AttachRemoveArgs { id, indices })
+            AttachmentsAction::Remove { id, file, indices } => {
+                commands::attach_remove(&AttachRemoveArgs { id, file, indices })
             }
         },
 

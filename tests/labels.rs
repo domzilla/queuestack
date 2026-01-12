@@ -27,6 +27,7 @@ fn test_labels_empty_project() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -54,6 +55,7 @@ fn test_labels_shows_unique_labels() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
@@ -99,6 +101,7 @@ fn test_labels_includes_archived_items() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     // Should include labels from both open and archived items
@@ -123,6 +126,7 @@ fn test_labels_without_init() {
             no_interactive: true,
         },
         id: None,
+        file: None,
     };
 
     let result = commands::list(&filter);
