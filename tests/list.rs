@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, InteractiveArgs, ListFilter, SortBy, StatusFilter};
+use qstack::commands::{self, InteractiveArgs, ListFilter, ListMode, SortBy, StatusFilter};
 
 #[test]
 fn test_list_empty_project() {
@@ -17,6 +17,7 @@ fn test_list_empty_project() {
     commands::init().expect("init should succeed");
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: None,
@@ -25,6 +26,7 @@ fn test_list_empty_project() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     // Should not error even if empty
@@ -52,6 +54,7 @@ fn test_list_shows_open_items() {
     .expect("move to archive");
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::Open,
         label: None,
         author: None,
@@ -60,6 +63,7 @@ fn test_list_shows_open_items() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     // Should succeed (output goes to stdout)
@@ -84,6 +88,7 @@ fn test_list_filter_by_label() {
     );
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: Some("bug".to_string()),
         author: None,
@@ -92,6 +97,7 @@ fn test_list_filter_by_label() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -108,6 +114,7 @@ fn test_list_sort_by_title() {
     create_test_item(&env, "260102-BBB", "Alpha Task", "open", &[], None);
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: None,
@@ -116,6 +123,7 @@ fn test_list_sort_by_title() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -139,6 +147,7 @@ fn test_list_shows_closed_items() {
     .expect("move to archive");
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::Closed,
         label: None,
         author: None,
@@ -147,6 +156,7 @@ fn test_list_shows_closed_items() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -163,6 +173,7 @@ fn test_list_filter_by_author() {
 
     // Author filter uses exact match (case-insensitive)
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: Some("Test User".to_string()),
@@ -171,6 +182,7 @@ fn test_list_filter_by_author() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -187,6 +199,7 @@ fn test_list_sort_by_date() {
     create_test_item(&env, "260102-BBB", "Second Task", "open", &[], None);
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: None,
@@ -195,6 +208,7 @@ fn test_list_sort_by_date() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -220,6 +234,7 @@ fn test_list_combined_filters() {
 
     // Author filter uses exact match (case-insensitive)
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::Open,
         label: Some("bug".to_string()),
         author: Some("Test User".to_string()),
@@ -228,6 +243,7 @@ fn test_list_combined_filters() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -250,6 +266,7 @@ fn test_list_open_and_closed_flags_together() {
 
     // Both flags true - should show all items
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: None,
@@ -258,6 +275,7 @@ fn test_list_open_and_closed_flags_together() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -274,6 +292,7 @@ fn test_list_without_init() {
     // Don't call init
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: None,
@@ -282,6 +301,7 @@ fn test_list_without_init() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -298,6 +318,7 @@ fn test_list_author_case_insensitive() {
 
     // Author filter uses exact match but is case-insensitive
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: None,
         author: Some("TEST USER".to_string()), // uppercase of "Test User"
@@ -306,6 +327,7 @@ fn test_list_author_case_insensitive() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     let result = commands::list(&filter);
@@ -321,6 +343,7 @@ fn test_list_nonexistent_label_filter() {
     create_test_item(&env, "260101-AAA", "Task", "open", &["bug"], None);
 
     let filter = ListFilter {
+        mode: ListMode::Items,
         status: StatusFilter::All,
         label: Some("nonexistent-label".to_string()),
         author: None,
@@ -329,6 +352,7 @@ fn test_list_nonexistent_label_filter() {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     // Should succeed but return empty list
@@ -346,6 +370,7 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
+            mode: ListMode::Items,
             status: StatusFilter::All,
             label: None,
             author: None,
@@ -354,6 +379,7 @@ fn test_list_interactive_combinations() {
                 interactive: false,
                 no_interactive: true,
             }, // Override interactive
+            id: None,
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -367,6 +393,7 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
+            mode: ListMode::Items,
             status: StatusFilter::All,
             label: None,
             author: None,
@@ -375,6 +402,7 @@ fn test_list_interactive_combinations() {
                 interactive: false,
                 no_interactive: false,
             }, // Would show selector if in terminal
+            id: None,
         };
 
         // Works because we're not in a terminal, so interactive selection is skipped
@@ -389,6 +417,7 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
+            mode: ListMode::Items,
             status: StatusFilter::All,
             label: None,
             author: None,
@@ -397,6 +426,7 @@ fn test_list_interactive_combinations() {
                 interactive: false,
                 no_interactive: false,
             },
+            id: None,
         };
 
         commands::list(&filter).expect("list should succeed");
@@ -410,6 +440,7 @@ fn test_list_interactive_combinations() {
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
         let filter = ListFilter {
+            mode: ListMode::Items,
             status: StatusFilter::All,
             label: None,
             author: None,
@@ -418,6 +449,7 @@ fn test_list_interactive_combinations() {
                 interactive: false,
                 no_interactive: true,
             },
+            id: None,
         };
 
         commands::list(&filter).expect("list should succeed");

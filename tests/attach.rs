@@ -1,6 +1,6 @@
 //! # Attachment Command Tests
 //!
-//! Tests for the `qstack attach add`, `qstack attach remove`, and `qstack attachments` commands.
+//! Tests for the `qstack attachments add`, `qstack attachments remove`, and `qstack list --attachments` commands.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
@@ -8,7 +8,10 @@
 mod common;
 
 use common::{create_test_item, create_test_item_with_attachments, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs, UpdateArgs};
+use qstack::commands::{
+    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListFilter, ListMode, SortBy,
+    StatusFilter, UpdateArgs,
+};
 
 // =============================================================================
 // Attach Add Command Tests
@@ -410,8 +413,23 @@ fn test_attach_remove_from_empty_item() {
 }
 
 // =============================================================================
-// Attachments List Command Tests
+// Attachments List Command Tests (via list --attachments)
 // =============================================================================
+
+fn make_attachments_filter(id: &str) -> ListFilter {
+    ListFilter {
+        mode: ListMode::Attachments,
+        status: StatusFilter::Open,
+        label: None,
+        author: None,
+        sort: SortBy::Id,
+        interactive: InteractiveArgs {
+            interactive: false,
+            no_interactive: true,
+        },
+        id: Some(id.to_string()),
+    }
+}
 
 #[test]
 fn test_attachments_list_empty() {
@@ -421,11 +439,9 @@ fn test_attachments_list_empty() {
 
     create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
 
-    let args = AttachmentsArgs {
-        id: "260101-AAA".to_string(),
-    };
+    let filter = make_attachments_filter("260101-AAA");
     // Should succeed but show "No attachments"
-    let result = commands::attachments(&args);
+    let result = commands::list(&filter);
     assert!(result.is_ok(), "attachments list should succeed for empty");
 }
 
@@ -448,10 +464,8 @@ fn test_attachments_list_mixed() {
         None,
     );
 
-    let args = AttachmentsArgs {
-        id: item_id.to_string(),
-    };
-    let result = commands::attachments(&args);
+    let filter = make_attachments_filter(item_id);
+    let result = commands::list(&filter);
     assert!(result.is_ok(), "attachments list should succeed");
 }
 
@@ -461,10 +475,8 @@ fn test_attachments_nonexistent_item() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().unwrap();
 
-    let args = AttachmentsArgs {
-        id: "NONEXISTENT".to_string(),
-    };
-    let result = commands::attachments(&args);
+    let filter = make_attachments_filter("NONEXISTENT");
+    let result = commands::list(&filter);
     assert!(result.is_err(), "Should fail for nonexistent item");
 }
 

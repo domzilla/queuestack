@@ -1,6 +1,6 @@
 //! # Labels Command Tests
 //!
-//! Tests for the `qstack labels` command.
+//! Tests for the `qstack list --labels` command.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, InteractiveArgs, LabelsArgs};
+use qstack::commands::{self, InteractiveArgs, ListFilter, ListMode, SortBy, StatusFilter};
 
 #[test]
 fn test_labels_empty_project() {
@@ -16,14 +16,20 @@ fn test_labels_empty_project() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let args = LabelsArgs {
+    let filter = ListFilter {
+        mode: ListMode::Labels,
+        status: StatusFilter::Open,
+        label: None,
+        author: None,
+        sort: SortBy::Id,
         interactive: InteractiveArgs {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
-    let result = commands::labels(&args);
+    let result = commands::list(&filter);
     assert!(result.is_ok(), "labels on empty project should succeed");
 }
 
@@ -37,14 +43,20 @@ fn test_labels_shows_unique_labels() {
     create_test_item(&env, "260102-BBB", "Task 2", "open", &["bug"], None);
     create_test_item(&env, "260103-CCC", "Task 3", "open", &["feature"], None);
 
-    let args = LabelsArgs {
+    let filter = ListFilter {
+        mode: ListMode::Labels,
+        status: StatusFilter::Open,
+        label: None,
+        author: None,
+        sort: SortBy::Id,
         interactive: InteractiveArgs {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
-    let result = commands::labels(&args);
+    let result = commands::list(&filter);
     assert!(result.is_ok(), "labels should succeed");
 }
 
@@ -76,15 +88,21 @@ fn test_labels_includes_archived_items() {
     )
     .expect("move to archive");
 
-    let args = LabelsArgs {
+    let filter = ListFilter {
+        mode: ListMode::Labels,
+        status: StatusFilter::Open,
+        label: None,
+        author: None,
+        sort: SortBy::Id,
         interactive: InteractiveArgs {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
     // Should include labels from both open and archived items
-    let result = commands::labels(&args);
+    let result = commands::list(&filter);
     assert!(result.is_ok(), "labels should include archived items");
 }
 
@@ -94,13 +112,19 @@ fn test_labels_without_init() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     // Don't init
 
-    let args = LabelsArgs {
+    let filter = ListFilter {
+        mode: ListMode::Labels,
+        status: StatusFilter::Open,
+        label: None,
+        author: None,
+        sort: SortBy::Id,
         interactive: InteractiveArgs {
             interactive: false,
             no_interactive: true,
         },
+        id: None,
     };
 
-    let result = commands::labels(&args);
+    let result = commands::list(&filter);
     assert!(result.is_err(), "labels without init should fail");
 }

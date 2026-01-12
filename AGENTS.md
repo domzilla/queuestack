@@ -68,14 +68,11 @@ qstack/
 │       ├── mod.rs          # Command dispatch & shared types
 │       ├── init.rs         # qstack init
 │       ├── new.rs          # qstack new <title>
-│       ├── list.rs         # qstack list [filters]
+│       ├── list.rs         # qstack list [filters] (also --labels, --categories, --attachments, --meta)
 │       ├── search.rs       # qstack search <query>
 │       ├── update.rs       # qstack update --id <id>
 │       ├── close.rs        # qstack close/reopen
-│       ├── labels.rs       # qstack labels
-│       ├── categories.rs   # qstack categories
-│       ├── attachments.rs  # qstack attachments (list/add/remove)
-│       ├── attach.rs       # Attachment helpers
+│       ├── attach.rs       # qstack attachments add/remove
 │       ├── setup.rs        # qstack setup (one-time setup)
 │       └── completions.rs  # qstack completions <shell>
 ├── scripts/
@@ -128,15 +125,16 @@ qstack new "Title" --no-interactive            # Create without editor
 qstack new "Title" -i                          # Force editor open
 qstack list --open --sort date                 # List items
 qstack list --label bug --author "John"        # Filter items
+qstack list --labels                           # List all unique labels
+qstack list --categories                       # List all unique categories
+qstack list --attachments --id 260109          # List attachments for item
+qstack list --meta --id 260109                 # Show item metadata/frontmatter
 qstack search "query"                          # Search and select
 qstack search "bug" --full-text --no-interactive  # Full-text search
 qstack update --id 260109 --title "New Title"  # Update item
 qstack update --id 26 --label urgent           # Partial ID match
 qstack close --id 260109                       # Archive item
 qstack reopen --id 260109                      # Restore item
-qstack labels                                  # List all labels
-qstack categories                              # List all categories
-qstack attachments list --id 260109            # List attachments
 qstack attachments add --id 260109 file.png    # Add file attachment
 qstack attachments add --id 260109 https://... # Add URL attachment
 qstack attachments remove --id 260109 1        # Remove by index

@@ -13,8 +13,8 @@ use owo_colors::OwoColorize;
 use clap::CommandFactory;
 use clap_complete::Shell;
 use qstack::commands::{
-    self, AttachAddArgs, AttachRemoveArgs, AttachmentsArgs, CategoriesArgs, InteractiveArgs,
-    LabelsArgs, ListFilter, NewArgs, SearchArgs, SortBy, StatusFilter, UpdateArgs,
+    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListFilter, ListMode, NewArgs,
+    SearchArgs, SortBy, StatusFilter, UpdateArgs,
 };
 
 const STYLES: Styles = Styles::styled()
@@ -171,13 +171,18 @@ The author is determined from (in order):\n  \
         no_interactive: bool,
     },
 
-    /// List items
+    /// List items, labels, categories, attachments, or metadata
     #[command(
         long_about = "List items in the current project.\n\n\
 Shows all open items in a table format. Based on the 'interactive' config setting \
 (default: true), presents a selector to choose an item to open. Use -i to force \
 interactive selection, or --no-interactive to just display the table.\n\n\
-Use filters to narrow down results.",
+Use filters to narrow down results.\n\n\
+Special modes:\n  \
+--labels        List unique labels across all items\n  \
+--categories    List unique categories across all items\n  \
+--attachments   List attachments for a specific item (requires --id)\n  \
+--meta          Show metadata/frontmatter for a specific item (requires --id)",
         after_help = concat!(
             h!("Examples:"), "\n  ",
             c!("qstack list"), "                        List items, select one to open\n  ",
@@ -185,7 +190,11 @@ Use filters to narrow down results.",
             c!("qstack list --closed"), "               List archived/closed items\n  ",
             c!("qstack list --label "), a!("bug"), "            Filter by label\n  ",
             c!("qstack list --author "), a!("\"John\""), "        Filter by author\n  ",
-            c!("qstack list --sort "), a!("date"), "            Sort by creation date\n\n",
+            c!("qstack list --sort "), a!("date"), "            Sort by creation date\n  ",
+            c!("qstack list --labels"), "               List all unique labels\n  ",
+            c!("qstack list --categories"), "           List all unique categories\n  ",
+            c!("qstack list --attachments --id "), a!("260109"), "  List attachments for item\n  ",
+            c!("qstack list --meta --id "), a!("260109"), "         Show item metadata\n\n",
             h!("Interactive mode:"), " Use arrow keys to navigate, Enter to select, Esc to cancel."
         )
     )]
@@ -227,6 +236,44 @@ Use filters to narrow down results.",
         /// Force non-interactive mode (just show table)
         #[arg(long, help = "Just display the table")]
         no_interactive: bool,
+
+        /// List all unique labels
+        #[arg(
+            long,
+            conflicts_with_all = ["categories", "attachments", "meta"],
+            help = "List unique labels across all items"
+        )]
+        labels: bool,
+
+        /// List all unique categories
+        #[arg(
+            long,
+            conflicts_with_all = ["labels", "attachments", "meta"],
+            help = "List unique categories across all items"
+        )]
+        categories: bool,
+
+        /// List attachments for an item (requires --id)
+        #[arg(
+            long,
+            conflicts_with_all = ["labels", "categories", "meta"],
+            requires = "id",
+            help = "List attachments for a specific item"
+        )]
+        attachments: bool,
+
+        /// Show metadata/frontmatter for an item (requires --id)
+        #[arg(
+            long,
+            conflicts_with_all = ["labels", "categories", "attachments"],
+            requires = "id",
+            help = "Show metadata for a specific item"
+        )]
+        meta: bool,
+
+        /// Item ID (required with --attachments or --meta)
+        #[arg(long, help = "Item ID (partial match supported)")]
+        id: Option<String>,
     },
 
     /// Search for items and interactively select one to open
@@ -367,74 +414,18 @@ preserve history.",
         id: String,
     },
 
-    /// List all labels used across items
-    #[command(
-        long_about = "List all unique labels used across items with counts.\n\n\
-Shows a table of all labels and how many items use each one. Based on the 'interactive' \
-config setting (default: true), you can select a label to see all items with that label, \
-then select an item to open. Use -i to force interactive mode, or --no-interactive to \
-just display the table.",
-        after_help = concat!(
-            h!("Examples:"), "\n  ",
-            c!("qstack labels"), "                         List all labels\n  ",
-            c!("qstack labels --no-interactive"), "        Just show the table\n  ",
-            c!("qstack labels -i"), "                      Force interactive selection"
-        )
-    )]
-    Labels {
-        /// Force interactive mode (show selector)
-        #[arg(
-            short = 'i',
-            long,
-            conflicts_with = "no_interactive",
-            help = "Force interactive selection"
-        )]
-        interactive: bool,
-
-        /// Force non-interactive mode (just show table)
-        #[arg(long, help = "Just display the table")]
-        no_interactive: bool,
-    },
-
-    /// List all categories used across items
-    #[command(
-        long_about = "List all unique categories used across items with counts.\n\n\
-Shows a table of all categories and how many items are in each one. Based on the 'interactive' \
-config setting (default: true), you can select a category to see all items in it, then select \
-an item to open. Use -i to force interactive mode, or --no-interactive to just display the table.",
-        after_help = concat!(
-            h!("Examples:"), "\n  ",
-            c!("qstack categories"), "                     List all categories\n  ",
-            c!("qstack categories --no-interactive"), "    Just show the table\n  ",
-            c!("qstack categories -i"), "                  Force interactive selection"
-        )
-    )]
-    Categories {
-        /// Force interactive mode (show selector)
-        #[arg(
-            short = 'i',
-            long,
-            conflicts_with = "no_interactive",
-            help = "Force interactive selection"
-        )]
-        interactive: bool,
-
-        /// Force non-interactive mode (just show table)
-        #[arg(long, help = "Just display the table")]
-        no_interactive: bool,
-    },
-
-    /// Manage item attachments (list, add, remove)
+    /// Manage item attachments (add, remove)
     #[command(
         long_about = "Manage attachments for items.\n\n\
 Attachments can be files (copied to item directory) or URLs (stored as references). \
-File attachments are renamed to follow the pattern: {ID}-Attachment-{N}-{name}.{ext}",
+File attachments are renamed to follow the pattern: {ID}-Attachment-{N}-{name}.{ext}\n\n\
+To list attachments for an item, use: qstack list --attachments --id <ID>",
         after_help = concat!(
             h!("Examples:"), "\n  ",
-            c!("qstack attachments list --id "), a!("260109-0A2B3C4"), "\n  ",
             c!("qstack attachments add --id "), a!("260109-0A2B3C4"), " ", a!("screenshot.png"), "\n  ",
             c!("qstack attachments add --id "), a!("260109-0A2B3C4"), " ", a!("https://github.com/issue/42"), "\n  ",
-            c!("qstack attachments remove --id "), a!("260109-0A2B3C4"), " ", a!("1"), " ", a!("2")
+            c!("qstack attachments remove --id "), a!("260109-0A2B3C4"), " ", a!("1"), " ", a!("2"), "\n\n",
+            h!("See also:"), " ", c!("qstack list --attachments --id "), a!("<ID>"), " to list attachments"
         )
     )]
     Attachments {
@@ -496,20 +487,6 @@ For automatic installation, use 'qstack setup' instead.",
 /// Subcommands for the attachments command
 #[derive(Subcommand)]
 enum AttachmentsAction {
-    /// List attachments for an item
-    #[command(
-        after_help = concat!(
-            h!("Example:"), "\n  ",
-            c!("qstack attachments list --id "), a!("260109-0A2B3C4"), "\n\n",
-            h!("Output:"), " Table with index, type (file/url), and attachment path or URL."
-        )
-    )]
-    List {
-        /// Item ID (partial match supported)
-        #[arg(long, required = true, help = "Item ID (partial match supported)")]
-        id: String,
-    },
-
     /// Add file or URL attachments to an item
     #[command(
         after_help = concat!(
@@ -590,13 +567,30 @@ fn run() -> Result<()> {
             sort,
             interactive,
             no_interactive,
+            labels,
+            categories,
+            attachments,
+            meta,
+            id,
         } => {
+            let mode = if labels {
+                ListMode::Labels
+            } else if categories {
+                ListMode::Categories
+            } else if attachments {
+                ListMode::Attachments
+            } else if meta {
+                ListMode::Meta
+            } else {
+                ListMode::Items
+            };
             let status = if closed {
                 StatusFilter::Closed
             } else {
                 StatusFilter::Open // Default to open
             };
             commands::list(&ListFilter {
+                mode,
                 status,
                 label,
                 author,
@@ -605,6 +599,7 @@ fn run() -> Result<()> {
                     interactive,
                     no_interactive,
                 },
+                id,
             })
         }
 
@@ -642,28 +637,7 @@ fn run() -> Result<()> {
 
         Commands::Reopen { id } => commands::execute_reopen(&id),
 
-        Commands::Labels {
-            interactive,
-            no_interactive,
-        } => commands::labels(&LabelsArgs {
-            interactive: InteractiveArgs {
-                interactive,
-                no_interactive,
-            },
-        }),
-
-        Commands::Categories {
-            interactive,
-            no_interactive,
-        } => commands::categories(&CategoriesArgs {
-            interactive: InteractiveArgs {
-                interactive,
-                no_interactive,
-            },
-        }),
-
         Commands::Attachments { action } => match action {
-            AttachmentsAction::List { id } => commands::attachments(&AttachmentsArgs { id }),
             AttachmentsAction::Add { id, sources } => {
                 commands::attach_add(&AttachAddArgs { id, sources })
             }
