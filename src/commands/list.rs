@@ -135,13 +135,18 @@ pub fn execute(filter: &ListFilter) -> Result<()> {
         return Ok(());
     }
 
-    ui::print_items_table(&items);
-
     // Check interactive mode
     if !filter.interactive.should_run(&config) {
+        // Non-interactive: print file paths
+        for item in &items {
+            if let Some(ref path) = item.path {
+                println!("{}", config.relative_path(path).display());
+            }
+        }
         return Ok(());
     }
 
+    // Interactive: TUI selection
     let selection = ui::select_item("Select an item to open", &items)?;
     let item = &items[selection];
     ui::open_item_in_editor(item, &config)?;

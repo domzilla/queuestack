@@ -9,7 +9,6 @@
 use std::io::IsTerminal;
 
 use anyhow::{Context, Result};
-use comfy_table::{presets::UTF8_FULL_CONDENSED, Cell, Color, ContentArrangement, Table};
 
 use std::path::Path;
 
@@ -112,14 +111,28 @@ pub fn select_from_list<T: ToString>(prompt: &str, options: &[T]) -> Result<usiz
 
 /// Interactive selection for items - returns index.
 ///
-/// Formats items as "{id} - {title}" for display.
+/// Formats items as columns: ID | Status | Title | Labels | Category
 /// Works with both `&[Item]` and `&[&Item]` via `AsRef<Item>`.
 pub fn select_item<T: AsRef<Item>>(prompt: &str, items: &[T]) -> Result<usize> {
     let options: Vec<String> = items
         .iter()
         .map(|item| {
             let item = item.as_ref();
-            format!("{} - {}", item.id(), item.title())
+            let status = match item.status() {
+                Status::Open => "open",
+                Status::Closed => "closed",
+            };
+            let labels = truncate(&item.labels().join(", "), UI_LABELS_TRUNCATE_LEN);
+            let category = item.category().unwrap_or("-");
+            let title = truncate(item.title(), UI_TITLE_TRUNCATE_LEN);
+            format!(
+                "{:<15} {:>6}  {:<40}  {:<20}  {}",
+                item.id(),
+                status,
+                title,
+                labels,
+                category
+            )
         })
         .collect();
 
@@ -219,73 +232,5 @@ pub fn truncate(s: &str, max: usize) -> String {
         s.to_string()
     } else {
         format!("{}…", &s[..max - 1])
-    }
-}
-
-// =============================================================================
-// Table Building
-// =============================================================================
-
-/// Creates a new table with default styling.
-pub fn create_table() -> Table {
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL_CONDENSED)
-        .set_content_arrangement(ContentArrangement::Dynamic);
-    table
-}
-
-/// Prints an item table with standard columns: ID, Status, Title, Labels, Category.
-pub fn print_items_table(items: &[Item]) {
-    print_items_table_ref(&items.iter().collect::<Vec<_>>());
-}
-
-/// Prints an item table from references.
-pub fn print_items_table_ref(items: &[&Item]) {
-    let mut table = create_table();
-    table.set_header(vec!["ID", "Status", "Title", "Labels", "Category"]);
-
-    for item in items {
-        let status_cell = status_cell(item.status());
-        let labels = item.labels().join(", ");
-        let category = item.category().unwrap_or("-");
-
-        table.add_row(vec![
-            Cell::new(item.id()),
-            status_cell,
-            Cell::new(truncate(item.title(), UI_TITLE_TRUNCATE_LEN)),
-            Cell::new(truncate(&labels, UI_LABELS_TRUNCATE_LEN)),
-            Cell::new(category),
-        ]);
-    }
-
-    println!("{table}");
-}
-
-/// Prints a compact item table without the category column.
-pub fn print_items_table_compact(items: &[&Item]) {
-    let mut table = create_table();
-    table.set_header(vec!["ID", "Status", "Title", "Labels"]);
-
-    for item in items {
-        let status_cell = status_cell(item.status());
-        let labels = item.labels().join(", ");
-
-        table.add_row(vec![
-            Cell::new(item.id()),
-            status_cell,
-            Cell::new(truncate(item.title(), UI_TITLE_TRUNCATE_LEN)),
-            Cell::new(truncate(&labels, UI_LABELS_TRUNCATE_LEN)),
-        ]);
-    }
-
-    println!("{table}");
-}
-
-/// Creates a colored status cell.
-fn status_cell(status: Status) -> Cell {
-    match status {
-        Status::Open => Cell::new("open").fg(Color::Green),
-        Status::Closed => Cell::new("closed").fg(Color::Red),
     }
 }

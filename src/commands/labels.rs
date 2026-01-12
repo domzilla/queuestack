@@ -34,11 +34,12 @@ pub fn execute(args: &LabelsArgs) -> Result<()> {
     let mut labels: Vec<_> = label_counts.into_iter().collect();
     labels.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
-    // Display table
-    print_table(&labels);
-
     // Check interactive mode
     if !args.interactive.should_run(&config) {
+        // Non-interactive: print labels one per line
+        for (label, _) in &labels {
+            println!("{label}");
+        }
         return Ok(());
     }
 
@@ -51,8 +52,6 @@ pub fn execute(args: &LabelsArgs) -> Result<()> {
     let selection = ui::select_from_list("Select a label to filter by", &options)?;
     let selected_label = &labels[selection].0;
 
-    println!("\n{} {}\n", "Items with label:".bold(), selected_label);
-
     // Show items with selected label using list command (all statuses)
     list::execute(&ListFilter {
         status: StatusFilter::All,
@@ -63,15 +62,4 @@ pub fn execute(args: &LabelsArgs) -> Result<()> {
     })?;
 
     Ok(())
-}
-
-fn print_table(labels: &[(String, usize)]) {
-    let mut table = ui::create_table();
-    table.set_header(vec!["Label", "Count"]);
-
-    for (label, count) in labels {
-        table.add_row(vec![label.as_str(), &count.to_string()]);
-    }
-
-    println!("{table}");
 }

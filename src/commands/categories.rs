@@ -39,11 +39,13 @@ pub fn execute(args: &CategoriesArgs) -> Result<()> {
         })
     });
 
-    // Display table
-    print_table(&categories);
-
     // Check interactive mode
     if !args.interactive.should_run(&config) {
+        // Non-interactive: print categories one per line
+        for (category, _) in &categories {
+            let name = category.as_deref().unwrap_or("(uncategorized)");
+            println!("{name}");
+        }
         return Ok(());
     }
 
@@ -59,10 +61,7 @@ pub fn execute(args: &CategoriesArgs) -> Result<()> {
     let selection = ui::select_from_list("Select a category to filter by", &options)?;
     let selected_category = &categories[selection].0;
 
-    let category_name = selected_category.as_deref().unwrap_or("(uncategorized)");
-    println!("\n{} {}\n", "Items in category:".bold(), category_name);
-
-    // Filter and display items in selected category
+    // Filter items in selected category
     let filtered: Vec<&Item> = items
         .iter()
         .filter(|item| item.category().map(String::from) == *selected_category)
@@ -73,28 +72,10 @@ pub fn execute(args: &CategoriesArgs) -> Result<()> {
         return Ok(());
     }
 
-    ui::print_items_table_compact(&filtered);
-
-    // Second interactive selection for items (check again since we printed a new table)
-    if !args.interactive.should_run(&config) {
-        return Ok(());
-    }
-
+    // Interactive: TUI selection for items
     let item_selection = ui::select_item("Select an item to open", &filtered)?;
     let item = filtered[item_selection];
     ui::open_item_in_editor(item, &config)?;
 
     Ok(())
-}
-
-fn print_table(categories: &[(Option<String>, usize)]) {
-    let mut table = ui::create_table();
-    table.set_header(vec!["Category", "Count"]);
-
-    for (category, count) in categories {
-        let name = category.as_deref().unwrap_or("(uncategorized)");
-        table.add_row(vec![name, &count.to_string()]);
-    }
-
-    println!("{table}");
 }

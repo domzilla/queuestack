@@ -6,10 +6,9 @@
 //! Licensed under the MIT License.
 
 use anyhow::Result;
-use comfy_table::{presets::UTF8_FULL_CONDENSED, ContentArrangement, Table};
 use owo_colors::OwoColorize;
 
-use crate::{config::Config, item::is_url, storage};
+use crate::{config::Config, storage};
 
 /// Arguments for the attachments command
 pub struct AttachmentsArgs {
@@ -30,19 +29,10 @@ pub fn execute(args: &AttachmentsArgs) -> Result<()> {
         return Ok(());
     }
 
-    // Build and print table
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL_CONDENSED)
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_header(vec!["#", "Type", "Attachment"]);
-
-    for (i, attachment) in attachments.iter().enumerate() {
-        let type_str = if is_url(attachment) { "url" } else { "file" };
-        table.add_row(vec![&(i + 1).to_string(), type_str, attachment]);
+    // Print attachments one per line
+    for attachment in attachments {
+        println!("{attachment}");
     }
-
-    println!("{table}");
 
     Ok(())
 }
