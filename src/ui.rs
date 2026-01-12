@@ -20,7 +20,7 @@ use crate::{
     editor,
     item::{Item, Status},
     storage::AttachmentResult,
-    tui::screens::select_from_list as tui_select,
+    tui::screens::{select_from_list as tui_select, select_from_list_with_header},
 };
 
 // =============================================================================
@@ -114,6 +114,11 @@ pub fn select_from_list<T: ToString>(prompt: &str, options: &[T]) -> Result<usiz
 /// Formats items as columns: ID | Status | Title | Labels | Category
 /// Works with both `&[Item]` and `&[&Item]` via `AsRef<Item>`.
 pub fn select_item<T: AsRef<Item>>(prompt: &str, items: &[T]) -> Result<usize> {
+    let header = format!(
+        "{:<15} {:>6}  {:<40}  {:<20}  {}",
+        "ID", "Status", "Title", "Labels", "Category"
+    );
+
     let options: Vec<String> = items
         .iter()
         .map(|item| {
@@ -136,7 +141,7 @@ pub fn select_item<T: AsRef<Item>>(prompt: &str, items: &[T]) -> Result<usize> {
         })
         .collect();
 
-    select_from_list(prompt, &options)
+    select_from_list_with_header(prompt, &header, &options)
 }
 
 /// Opens an item in the editor and prints its relative path.

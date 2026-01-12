@@ -6,7 +6,7 @@ use anyhow::Result;
 use crossterm::event::{KeyCode, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Layout},
-    style::{Color, Style},
+    style::{Color, Modifier, Style},
     text::Line,
     widgets::{Block, Borders, Paragraph},
     Frame,
@@ -23,6 +23,7 @@ use crate::tui::{
 struct SelectScreen {
     list: SelectList,
     prompt: String,
+    header: Option<String>,
 }
 
 impl SelectScreen {
@@ -31,7 +32,13 @@ impl SelectScreen {
         Self {
             list,
             prompt: prompt.into(),
+            header: None,
         }
+    }
+
+    fn with_header(mut self, header: impl Into<String>) -> Self {
+        self.header = Some(header.into());
+        self
     }
 }
 
@@ -59,13 +66,24 @@ impl TuiApp for SelectScreen {
     fn render(&mut self, frame: &mut Frame) {
         let area = frame.area();
 
-        // Layout: prompt at top, list below, help at bottom
-        let chunks = Layout::vertical([
-            Constraint::Length(3), // Prompt
-            Constraint::Min(5),    // List
-            Constraint::Length(3), // Help
-        ])
-        .split(area);
+        // Layout: prompt at top, optional header, list below, help at bottom
+        let has_header = self.header.is_some();
+        let chunks = if has_header {
+            Layout::vertical([
+                Constraint::Length(3), // Prompt
+                Constraint::Length(1), // Header
+                Constraint::Min(5),    // List
+                Constraint::Length(3), // Help
+            ])
+            .split(area)
+        } else {
+            Layout::vertical([
+                Constraint::Length(3), // Prompt
+                Constraint::Min(5),    // List
+                Constraint::Length(3), // Help
+            ])
+            .split(area)
+        };
 
         // Prompt
         let prompt_block = Block::default()
@@ -76,9 +94,25 @@ impl TuiApp for SelectScreen {
         let prompt = Paragraph::new(self.prompt.as_str()).block(prompt_block);
         frame.render_widget(prompt, chunks[0]);
 
+        // Header (if present)
+        let (list_chunk, help_chunk) = if has_header {
+            if let Some(ref header) = self.header {
+                let header_style = Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD);
+                // Add prefix spacing to align with list items (which have "> " or "  " prefix)
+                let header_text = format!("  {header}");
+                let header_widget = Paragraph::new(header_text).style(header_style);
+                frame.render_widget(header_widget, chunks[1]);
+            }
+            (chunks[2], chunks[3])
+        } else {
+            (chunks[1], chunks[2])
+        };
+
         // List
         let mut list_clone = self.list.clone();
-        list_clone.render(chunks[1], frame.buffer_mut(), true);
+        list_clone.render(list_chunk, frame.buffer_mut(), true);
 
         // Help
         let help = Paragraph::new(Line::from(vec![
@@ -91,7 +125,7 @@ impl TuiApp for SelectScreen {
         ]))
         .block(Block::default().borders(Borders::ALL));
 
-        frame.render_widget(help, chunks[2]);
+        frame.render_widget(help, help_chunk);
     }
 }
 
@@ -106,6 +140,29 @@ pub fn select_from_list<T: ToString>(prompt: &str, options: &[T]) -> Result<usiz
     }
 
     let app = SelectScreen::new(prompt, items);
+
+    match run(app)? {
+        Some(index) => Ok(index),
+        None => anyhow::bail!("Selection cancelled"),
+    }
+}
+
+/// Select from a list of options with a header row.
+///
+/// The header is displayed above the list items to label columns.
+/// Returns the index of the selected item, or an error if cancelled.
+pub fn select_from_list_with_header<T: ToString>(
+    prompt: &str,
+    header: &str,
+    options: &[T],
+) -> Result<usize> {
+    let items: Vec<String> = options.iter().map(ToString::to_string).collect();
+
+    if items.is_empty() {
+        anyhow::bail!("No items to select from");
+    }
+
+    let app = SelectScreen::new(prompt, items).with_header(header);
 
     match run(app)? {
         Some(index) => Ok(index),
