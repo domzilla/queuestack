@@ -174,9 +174,9 @@ The author is determined from (in order):\n  \
     /// List items, labels, categories, attachments, or metadata
     #[command(
         long_about = "List items in the current project.\n\n\
-Shows all open items in a table format. Based on the 'interactive' config setting \
-(default: true), presents a selector to choose an item to open. Use -i to force \
-interactive selection, or --no-interactive to just display the table.\n\n\
+Shows all open items. Based on the 'interactive' config setting (default: true), \
+presents a selector to choose an item to open. Use -i to force interactive \
+selection, or --no-interactive to just print the list.\n\n\
 Use filters to narrow down results.\n\n\
 Special modes:\n  \
 --labels        List unique labels across all items\n  \
@@ -186,7 +186,7 @@ Special modes:\n  \
         after_help = concat!(
             h!("Examples:"), "\n  ",
             c!("qstack list"), "                        List items, select one to open\n  ",
-            c!("qstack list --no-interactive"), "       Just show the table\n  ",
+            c!("qstack list --no-interactive"), "       Just print the list\n  ",
             c!("qstack list --closed"), "               List archived/closed items\n  ",
             c!("qstack list --label "), a!("bug"), "            Filter by label\n  ",
             c!("qstack list --author "), a!("\"John\""), "        Filter by author\n  ",
@@ -233,8 +233,8 @@ Special modes:\n  \
         )]
         interactive: bool,
 
-        /// Force non-interactive mode (just show table)
-        #[arg(long, help = "Just display the table")]
+        /// Force non-interactive mode (just print list)
+        #[arg(long, help = "Just print the list")]
         no_interactive: bool,
 
         /// List all unique labels

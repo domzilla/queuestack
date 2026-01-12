@@ -1,6 +1,6 @@
 //! # UI Utilities
 //!
-//! Shared user interface utilities for interactive dialogs, table formatting,
+//! Shared user interface utilities for interactive dialogs, list formatting,
 //! and common UI patterns used across commands.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.

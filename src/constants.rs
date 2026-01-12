@@ -9,10 +9,10 @@
 // UI Display
 // =============================================================================
 
-/// Maximum length for title display in tables (truncated with ellipsis).
+/// Maximum length for title display in lists (truncated with ellipsis).
 pub const UI_TITLE_TRUNCATE_LEN: usize = 40;
 
-/// Maximum length for labels display in tables (truncated with ellipsis).
+/// Maximum length for labels display in lists (truncated with ellipsis).
 pub const UI_LABELS_TRUNCATE_LEN: usize = 20;
 
 // =============================================================================
