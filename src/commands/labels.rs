@@ -10,8 +10,6 @@ use owo_colors::OwoColorize;
 
 use crate::{config::Config, item::Item, storage, ui, ui::InteractiveArgs};
 
-use super::{list, ListFilter, SortBy, StatusFilter};
-
 /// Arguments for the labels command
 pub struct LabelsArgs {
     pub interactive: InteractiveArgs,
@@ -52,14 +50,21 @@ pub fn execute(args: &LabelsArgs) -> Result<()> {
     let selection = ui::select_from_list("Select a label to filter by", &options)?;
     let selected_label = &labels[selection].0;
 
-    // Show items with selected label using list command (all statuses)
-    list::execute(&ListFilter {
-        status: StatusFilter::All,
-        label: Some(selected_label.clone()),
-        author: None,
-        sort: SortBy::Id,
-        interactive: args.interactive,
-    })?;
+    // Filter items with selected label
+    let filtered: Vec<&Item> = items
+        .iter()
+        .filter(|item| item.labels().iter().any(|l| l == selected_label))
+        .collect();
+
+    if filtered.is_empty() {
+        println!("{}", "No items found.".dimmed());
+        return Ok(());
+    }
+
+    // Interactive: TUI selection for items
+    let item_selection = ui::select_item("Select an item to open", &filtered)?;
+    let item = filtered[item_selection];
+    ui::open_item_in_editor(item, &config)?;
 
     Ok(())
 }
