@@ -18,7 +18,7 @@ use ratatui::{
 use crate::{
     config::Config,
     constants::{UI_LABELS_TRUNCATE_LEN, UI_TITLE_TRUNCATE_LEN},
-    item::{Item, Status},
+    item::{matches_any_label, matches_category_filter, matches_search_text, Item, Status},
     storage,
     tui::{
         event::TuiEvent,
@@ -174,33 +174,34 @@ impl ItemActionScreen {
     }
 
     /// Apply the current filter state to update `filtered_indices` and rebuild the list.
+    ///
+    /// Uses shared filter predicates from `item::search` module.
     fn apply_filter(&mut self) {
-        let search_lower = self.filter_state.search.to_lowercase();
+        let search = &self.filter_state.search;
+        let filter_labels = &self.filter_state.labels;
+        let filter_category = &self.filter_state.category;
 
         self.filtered_indices = self
             .all_items
             .iter()
             .enumerate()
             .filter(|(_, item)| {
-                // Search filter (FTS)
-                let matches_search = search_lower.is_empty()
-                    || item.title.to_lowercase().contains(&search_lower)
-                    || item.id.to_lowercase().contains(&search_lower)
-                    || item.body.to_lowercase().contains(&search_lower);
+                // Search filter (FTS) - uses shared predicate
+                let search_ok = search.is_empty()
+                    || matches_search_text(&item.title, &item.id, &item.body, search);
 
-                // Label filter (OR logic - item has ANY of the selected labels)
-                let matches_labels = self.filter_state.labels.is_empty()
-                    || self
-                        .filter_state
-                        .labels
-                        .iter()
-                        .any(|label| item.labels.contains(label));
+                // Label filter (OR logic) - uses shared predicate
+                let labels_ok =
+                    filter_labels.is_empty() || matches_any_label(&item.labels, filter_labels);
 
-                // Category filter
-                let matches_category = self.filter_state.category.is_none()
-                    || item.category == self.filter_state.category;
+                // Category filter - uses shared predicate
+                let category_ok = filter_category.is_none()
+                    || matches_category_filter(
+                        item.category.as_deref(),
+                        filter_category.as_deref().unwrap_or(""),
+                    );
 
-                matches_search && matches_labels && matches_category
+                search_ok && labels_ok && category_ok
             })
             .map(|(i, _)| i)
             .collect();

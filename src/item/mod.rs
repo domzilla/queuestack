@@ -18,7 +18,13 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-pub use self::slug::slugify;
+pub use self::{
+    search::{
+        matches_any_label, matches_author_filter, matches_category_filter, matches_filter,
+        matches_query, matches_search_text, FilterCriteria,
+    },
+    slug::slugify,
+};
 
 /// Normalizes a label or category by replacing invalid characters with hyphens
 /// and converting to lowercase.

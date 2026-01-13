@@ -13,7 +13,7 @@ use owo_colors::OwoColorize;
 use clap::CommandFactory;
 use clap_complete::Shell;
 use qstack::commands::{
-    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListFilter, ListMode, NewArgs,
+    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListMode, ListOptions, NewArgs,
     SearchArgs, SortBy, StatusFilter, UpdateArgs,
 };
 
@@ -692,7 +692,7 @@ fn run() -> Result<()> {
             } else {
                 StatusFilter::Open // Default to open
             };
-            commands::list(&ListFilter {
+            commands::list(&ListOptions {
                 mode,
                 status,
                 labels: label,

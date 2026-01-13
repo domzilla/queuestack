@@ -22,7 +22,7 @@ pub use self::{
     close::{execute_close, execute_reopen},
     completions::execute as completions,
     init::execute as init,
-    list::{execute as list, ListFilter, ListMode, SortBy, StatusFilter},
+    list::{execute as list, ListMode, ListOptions, SortBy, StatusFilter},
     new::{execute as new, NewArgs},
     search::{execute as search, SearchArgs},
     setup::execute as setup,

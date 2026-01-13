@@ -15,6 +15,25 @@ pub const UI_TITLE_TRUNCATE_LEN: usize = 40;
 /// Maximum length for labels display in lists (truncated with ellipsis).
 pub const UI_LABELS_TRUNCATE_LEN: usize = 20;
 
+/// Column width for ID in list display.
+pub const UI_COL_ID_WIDTH: usize = 15;
+
+/// Column width for status in list display.
+pub const UI_COL_STATUS_WIDTH: usize = 6;
+
+// =============================================================================
+// Item Format
+// =============================================================================
+
+/// Maximum slug length in characters (not bytes).
+pub const MAX_SLUG_LENGTH: usize = 50;
+
+/// YAML frontmatter delimiter.
+pub const FRONTMATTER_DELIMITER: &str = "---";
+
+/// Attachment filename infix (between item ID and counter).
+pub const ATTACHMENT_INFIX: &str = "-Attachment-";
+
 // =============================================================================
 // File System
 // =============================================================================

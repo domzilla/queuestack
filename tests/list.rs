@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, InteractiveArgs, ListFilter, ListMode, SortBy, StatusFilter};
+use qstack::commands::{self, InteractiveArgs, ListMode, ListOptions, SortBy, StatusFilter};
 
 #[test]
 fn test_list_empty_project() {
@@ -16,7 +16,7 @@ fn test_list_empty_project() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -55,7 +55,7 @@ fn test_list_shows_open_items() {
     )
     .expect("move to archive");
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::Open,
         labels: Vec::new(),
@@ -91,7 +91,7 @@ fn test_list_filter_by_label() {
         None,
     );
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: vec!["bug".to_string()],
@@ -119,7 +119,7 @@ fn test_list_sort_by_title() {
     create_test_item(&env, "260101-AAA", "Zebra Task", "open", &[], None);
     create_test_item(&env, "260102-BBB", "Alpha Task", "open", &[], None);
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -154,7 +154,7 @@ fn test_list_shows_closed_items() {
     )
     .expect("move to archive");
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::Closed,
         labels: Vec::new(),
@@ -182,7 +182,7 @@ fn test_list_filter_by_author() {
     create_test_item(&env, "260101-AAA", "Task by Test User", "open", &[], None);
 
     // Author filter uses exact match (case-insensitive)
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -210,7 +210,7 @@ fn test_list_sort_by_date() {
     create_test_item(&env, "260101-AAA", "First Task", "open", &[], None);
     create_test_item(&env, "260102-BBB", "Second Task", "open", &[], None);
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -247,7 +247,7 @@ fn test_list_combined_filters() {
     create_test_item(&env, "260103-CCC", "Feature", "open", &["feature"], None);
 
     // Author filter uses exact match (case-insensitive)
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::Open,
         labels: vec!["bug".to_string()],
@@ -281,7 +281,7 @@ fn test_list_open_and_closed_flags_together() {
     .expect("move to archive");
 
     // Both flags true - should show all items
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -309,7 +309,7 @@ fn test_list_without_init() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     // Don't call init
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -337,7 +337,7 @@ fn test_list_author_case_insensitive() {
     create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
     // Author filter uses exact match but is case-insensitive
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: Vec::new(),
@@ -364,7 +364,7 @@ fn test_list_nonexistent_label_filter() {
 
     create_test_item(&env, "260101-AAA", "Task", "open", &["bug"], None);
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Items,
         status: StatusFilter::All,
         labels: vec!["nonexistent-label".to_string()],
@@ -393,7 +393,7 @@ fn test_list_interactive_combinations() {
         commands::init().expect("init should succeed");
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
-        let filter = ListFilter {
+        let filter = ListOptions {
             mode: ListMode::Items,
             status: StatusFilter::All,
             labels: Vec::new(),
@@ -418,7 +418,7 @@ fn test_list_interactive_combinations() {
         commands::init().expect("init should succeed");
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
-        let filter = ListFilter {
+        let filter = ListOptions {
             mode: ListMode::Items,
             status: StatusFilter::All,
             labels: Vec::new(),
@@ -444,7 +444,7 @@ fn test_list_interactive_combinations() {
         commands::init().expect("init should succeed");
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
-        let filter = ListFilter {
+        let filter = ListOptions {
             mode: ListMode::Items,
             status: StatusFilter::All,
             labels: Vec::new(),
@@ -469,7 +469,7 @@ fn test_list_interactive_combinations() {
         commands::init().expect("init should succeed");
         create_test_item(&env, "260101-AAA", "Task", "open", &[], None);
 
-        let filter = ListFilter {
+        let filter = ListOptions {
             mode: ListMode::Items,
             status: StatusFilter::All,
             labels: Vec::new(),

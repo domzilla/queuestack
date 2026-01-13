@@ -17,7 +17,9 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{
     config::Config,
-    constants::{UI_LABELS_TRUNCATE_LEN, UI_TITLE_TRUNCATE_LEN},
+    constants::{
+        UI_COL_ID_WIDTH, UI_COL_STATUS_WIDTH, UI_LABELS_TRUNCATE_LEN, UI_TITLE_TRUNCATE_LEN,
+    },
     editor,
     item::{Item, Status},
     storage::{self, AttachmentResult},
@@ -87,9 +89,12 @@ pub struct InteractiveArgs {
 }
 
 impl InteractiveArgs {
-    /// Resolves interactive mode from flags and config.
+    /// Resolves interactive mode from flags and config default.
     ///
     /// Priority: explicit `--interactive` > explicit `--no-interactive` > config default
+    ///
+    /// Use this when you need fine-grained control (e.g., different behavior for
+    /// terminal vs. non-terminal). For the common case, use `should_run()` instead.
     pub const fn resolve(&self, config_default: bool) -> bool {
         if self.interactive {
             true
@@ -100,9 +105,19 @@ impl InteractiveArgs {
         }
     }
 
-    /// Checks if we should run interactive mode (combines flag resolution with terminal check).
+    /// Returns whether interactive mode is enabled based on flags and config.
+    ///
+    /// Equivalent to `resolve(config.interactive())`. Use this when you only need
+    /// the resolved boolean without a terminal check.
+    pub fn is_enabled(&self, config: &Config) -> bool {
+        self.resolve(config.interactive())
+    }
+
+    /// Checks if interactive mode should run (enabled AND in a terminal).
+    ///
+    /// Use this for TUI/interactive features that require a terminal.
     pub fn should_run(&self, config: &Config) -> bool {
-        self.resolve(config.interactive()) && std::io::stdout().is_terminal()
+        self.is_enabled(config) && std::io::stdout().is_terminal()
     }
 }
 
@@ -141,8 +156,16 @@ pub fn select_item<T: AsRef<Item>>(
     config: &Config,
 ) -> Result<Option<usize>> {
     let header = format!(
-        "{:<15} {:>6}  {:<40}  {:<20}  {}",
-        "ID", "Status", "Title", "Labels", "Category"
+        "{:<id_w$} {:>status_w$}  {:<title_w$}  {:<labels_w$}  {}",
+        "ID",
+        "Status",
+        "Title",
+        "Labels",
+        "Category",
+        id_w = UI_COL_ID_WIDTH,
+        status_w = UI_COL_STATUS_WIDTH,
+        title_w = UI_TITLE_TRUNCATE_LEN,
+        labels_w = UI_LABELS_TRUNCATE_LEN,
     );
 
     let options: Vec<String> = items
@@ -162,12 +185,14 @@ pub fn select_item<T: AsRef<Item>>(
             let title = truncate(item.title(), UI_TITLE_TRUNCATE_LEN);
             // Use display-width-aware padding for proper alignment with CJK/emoji
             format!(
-                "{:<15} {:>6}  {}  {}  {}",
+                "{:<id_w$} {:>status_w$}  {}  {}  {}",
                 item.id(),
                 status,
-                pad_to_width(&title, 40),
-                pad_to_width(&labels, 20),
-                category
+                pad_to_width(&title, UI_TITLE_TRUNCATE_LEN),
+                pad_to_width(&labels, UI_LABELS_TRUNCATE_LEN),
+                category,
+                id_w = UI_COL_ID_WIDTH,
+                status_w = UI_COL_STATUS_WIDTH,
             )
         })
         .collect();

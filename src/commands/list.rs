@@ -14,7 +14,12 @@ use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 
 use crate::{
-    commands, config::Config, item::Item, storage, tui::screens::ItemAction, ui,
+    commands,
+    config::Config,
+    item::{matches_filter, FilterCriteria, Item},
+    storage,
+    tui::screens::ItemAction,
+    ui,
     ui::InteractiveArgs,
 };
 
@@ -56,7 +61,7 @@ pub enum ListMode {
 }
 
 /// Filter options for listing
-pub struct ListFilter {
+pub struct ListOptions {
     pub mode: ListMode,
     pub status: StatusFilter,
     pub labels: Vec<String>,
@@ -70,7 +75,7 @@ pub struct ListFilter {
     pub file: Option<PathBuf>,
 }
 
-impl Default for ListFilter {
+impl Default for ListOptions {
     fn default() -> Self {
         Self {
             mode: ListMode::default(),
@@ -86,18 +91,15 @@ impl Default for ListFilter {
     }
 }
 
-/// Common filter options for item queries
-pub struct ItemFilter {
-    pub labels: Vec<String>,
-    pub author: Option<String>,
-    pub category: Option<String>,
-}
-
 /// Collects and filters items from storage.
 ///
 /// If `include_archived` is true, collects from archive directory,
 /// otherwise collects from the main stack directory.
-pub fn collect_items(config: &Config, include_archived: bool, filter: &ItemFilter) -> Vec<Item> {
+pub fn collect_items(
+    config: &Config,
+    include_archived: bool,
+    filter: &FilterCriteria,
+) -> Vec<Item> {
     let paths: Vec<_> = if include_archived {
         storage::walk_archived(config).collect()
     } else {
@@ -107,7 +109,13 @@ pub fn collect_items(config: &Config, include_archived: bool, filter: &ItemFilte
     paths
         .into_iter()
         .filter_map(|path| Item::load(&path).ok())
-        .filter(|item| apply_item_filter(config, item, filter))
+        .filter(|item| {
+            let category = item
+                .path
+                .as_ref()
+                .and_then(|p| storage::derive_category(config, p));
+            matches_filter(item, filter, category.as_deref())
+        })
         .collect()
 }
 
@@ -148,46 +156,8 @@ fn collect_unique_categories(items: &[Item], config: &Config) -> Vec<String> {
     categories
 }
 
-fn apply_item_filter(config: &Config, item: &Item, filter: &ItemFilter) -> bool {
-    // Label filter (OR logic - item must have ANY of the specified labels)
-    if !filter.labels.is_empty()
-        && !filter
-            .labels
-            .iter()
-            .any(|label| item.labels().iter().any(|l| l.eq_ignore_ascii_case(label)))
-    {
-        return false;
-    }
-
-    // Author filter (case-insensitive substring match)
-    if let Some(ref author) = filter.author {
-        if !item
-            .author()
-            .to_lowercase()
-            .contains(&author.to_lowercase())
-        {
-            return false;
-        }
-    }
-
-    // Category filter (case-insensitive match)
-    if let Some(ref cat) = filter.category {
-        let item_category = item
-            .path
-            .as_ref()
-            .and_then(|p| storage::derive_category(config, p));
-        match item_category {
-            Some(c) if c.eq_ignore_ascii_case(cat) => {}
-            None if cat.eq_ignore_ascii_case("uncategorized") => {}
-            _ => return false,
-        }
-    }
-
-    true
-}
-
 /// Executes the list command.
-pub fn execute(filter: &ListFilter) -> Result<()> {
+pub fn execute(filter: &ListOptions) -> Result<()> {
     let config = Config::load()?;
 
     match filter.mode {
@@ -200,12 +170,13 @@ pub fn execute(filter: &ListFilter) -> Result<()> {
 }
 
 /// Lists items (default mode).
-fn execute_items(filter: &ListFilter, config: &Config) -> Result<()> {
+fn execute_items(filter: &ListOptions, config: &Config) -> Result<()> {
     // Collect items based on status filter
-    let item_filter = ItemFilter {
+    let item_filter = FilterCriteria {
         labels: filter.labels.clone(),
         author: filter.author.clone(),
         category: filter.category.clone(),
+        ..FilterCriteria::default()
     };
 
     let mut items = match filter.status {
@@ -390,12 +361,8 @@ fn execute_edit_wizard(path: &std::path::Path, config: &Config) -> Result<()> {
 }
 
 /// Lists all unique labels across items.
-fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
-    let item_filter = ItemFilter {
-        labels: Vec::new(),
-        author: None,
-        category: None,
-    };
+fn execute_labels(filter: &ListOptions, config: &Config) -> Result<()> {
+    let item_filter = FilterCriteria::default();
 
     // Load all items to get complete label vocabulary
     let all_items = storage::load_all_items(config);
@@ -478,12 +445,8 @@ fn execute_labels(filter: &ListFilter, config: &Config) -> Result<()> {
 }
 
 /// Lists all unique categories across items.
-fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
-    let item_filter = ItemFilter {
-        labels: Vec::new(),
-        author: None,
-        category: None,
-    };
+fn execute_categories(filter: &ListOptions, config: &Config) -> Result<()> {
+    let item_filter = FilterCriteria::default();
 
     // Load all items to get complete category vocabulary
     let all_items = storage::load_all_items(config);
@@ -591,7 +554,7 @@ fn execute_categories(filter: &ListFilter, config: &Config) -> Result<()> {
 }
 
 /// Lists attachments for a specific item.
-fn execute_attachments(filter: &ListFilter, config: &Config) -> Result<()> {
+fn execute_attachments(filter: &ListOptions, config: &Config) -> Result<()> {
     let item_ref = storage::ItemRef::from_options(filter.id.clone(), filter.file.clone())?;
 
     // Find and load the item
@@ -613,7 +576,7 @@ fn execute_attachments(filter: &ListFilter, config: &Config) -> Result<()> {
 }
 
 /// Shows metadata/frontmatter for a specific item.
-fn execute_meta(filter: &ListFilter, config: &Config) -> Result<()> {
+fn execute_meta(filter: &ListOptions, config: &Config) -> Result<()> {
     let item_ref = storage::ItemRef::from_options(filter.id.clone(), filter.file.clone())?;
 
     // Find and load the item

@@ -12,8 +12,7 @@
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
 
-/// Maximum slug length in characters (not bytes)
-const MAX_SLUG_LENGTH: usize = 50;
+use crate::constants::MAX_SLUG_LENGTH;
 
 /// Converts a title string into a URL-safe slug.
 ///

@@ -149,9 +149,37 @@ Body content here.
 
 Uses `serde_yml` for YAML (de)serialization.
 
-#### `search.rs` — Query Matching
+#### `search.rs` — Search and Filter (Single Source of Truth)
 
-Case-insensitive search against title, ID, and optionally body content:
+This module provides unified filtering logic used by both CLI commands and TUI.
+
+**FilterCriteria** — Unified filter criteria:
+
+```rust
+pub struct FilterCriteria {
+    pub search: String,           // Text search query
+    pub labels: Vec<String>,      // Labels to filter by (OR logic)
+    pub category: Option<String>, // Category filter
+    pub author: Option<String>,   // Author filter
+}
+```
+
+**Core filtering function:**
+
+```rust
+pub fn matches_filter(item: &Item, criteria: &FilterCriteria, item_category: Option<&str>) -> bool
+```
+
+**Reusable predicates** (for TUI which uses flattened `ItemInfo`):
+
+```rust
+pub fn matches_search_text(title: &str, id: &str, body: &str, query: &str) -> bool
+pub fn matches_any_label(item_labels: &[String], filter_labels: &[String]) -> bool
+pub fn matches_category_filter(item_category: Option<&str>, filter_category: &str) -> bool
+pub fn matches_author_filter(item_author: &str, filter_author: &str) -> bool
+```
+
+**Simple query matching** (for search command):
 
 ```rust
 pub fn matches_query(item: &Item, query: &str, full_text: bool) -> bool
@@ -222,6 +250,9 @@ pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String
 pub fn unarchive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String>)>
 pub fn rename_item(path: &Path, new_filename: &str) -> Result<PathBuf>
 pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) -> Result<...>
+
+// Internal helper (shared by archive/unarchive/move_to_category)
+fn move_item_to_dir(config: &Config, path: &Path, dest_dir: &Path) -> Result<(PathBuf, Vec<String>)>
 ```
 
 Uses `walkdir` crate for recursive directory traversal with depth limits.
@@ -361,7 +392,7 @@ impl Drop for TerminalGuard {
 
 Shared UI utilities:
 
-- **InteractiveArgs** — Resolves `--interactive` / `--no-interactive` flags
+- **InteractiveArgs** — Resolves `--interactive` / `--no-interactive` flags with `is_enabled(config)` method
 - **Selection dialogs** — `select_from_list()`, `select_item()` (formats items with columns for TUI)
 - **Aggregation** — `count_by()`, `count_by_many()` for labels/categories
 - **Output formatting** — `print_success()`, `print_warnings()`, `truncate()`
@@ -372,7 +403,7 @@ Each command is a separate file with an `execute()` function:
 
 ```rust
 // src/commands/list.rs
-pub fn execute(filter: ListFilter, interactive: InteractiveArgs) -> Result<()> {
+pub fn execute(filter: ListOptions, interactive: InteractiveArgs) -> Result<()> {
     let config = Config::load()?;
     let items = load_and_filter(&config, &filter);
 
@@ -411,10 +442,15 @@ Centralized magic values:
 pub const ITEM_FILE_EXTENSION: &str = "md";
 pub const DEFAULT_STACK_DIR: &str = "qstack";
 pub const DEFAULT_ARCHIVE_DIR: &str = ".archive";
+pub const MAX_SLUG_LENGTH: usize = 50;
+pub const FRONTMATTER_DELIMITER: &str = "---";
+pub const ATTACHMENT_INFIX: &str = "-Attachment-";
 
 // UI
 pub const UI_TITLE_TRUNCATE_LEN: usize = 40;
 pub const UI_LABELS_TRUNCATE_LEN: usize = 20;
+pub const UI_COL_ID_WIDTH: usize = 15;
+pub const UI_COL_STATUS_WIDTH: usize = 6;
 
 // Shell completions
 pub const ZSH_COMPLETIONS_DIR: &str = ".zfunc";

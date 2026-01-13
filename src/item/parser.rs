@@ -8,9 +8,7 @@
 use anyhow::{Context, Result};
 
 use super::Frontmatter;
-
-/// YAML frontmatter delimiter
-const FRONTMATTER_DELIMITER: &str = "---";
+use crate::constants::FRONTMATTER_DELIMITER;
 
 /// Parses a Markdown file with YAML frontmatter.
 ///

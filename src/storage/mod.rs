@@ -14,7 +14,7 @@ use walkdir::WalkDir;
 
 use crate::{
     config::Config,
-    constants::ITEM_FILE_EXTENSION,
+    constants::{ATTACHMENT_INFIX, ITEM_FILE_EXTENSION},
     id,
     item::{slugify, Item},
 };
@@ -226,25 +226,26 @@ pub fn create_item(config: &Config, item: &Item, category: Option<&str>) -> Resu
     Ok(path)
 }
 
-/// Moves an item to the archive.
+/// Internal helper to move an item to a destination directory.
 ///
-/// Preserves category folder structure in archive.
-/// Returns the new path and any warnings from moving attachments.
-pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String>)> {
+/// Handles: creating dest dir, moving attachments, moving file via git, cleanup.
+fn move_item_to_dir(
+    config: &Config,
+    path: &Path,
+    dest_dir: &Path,
+) -> Result<(PathBuf, Vec<String>)> {
     let filename = path
         .file_name()
         .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
 
-    // Derive category from source path to preserve folder structure
-    let category = derive_category(config, path);
-    let archive_base = config.archive_path();
+    std::fs::create_dir_all(dest_dir)?;
 
-    // Target directory: archive/category/ or archive/
-    let dest_dir = category
-        .as_deref()
-        .map_or_else(|| archive_base.clone(), |cat| archive_base.join(cat));
+    let dest = dest_dir.join(filename);
 
-    std::fs::create_dir_all(&dest_dir)?;
+    // Short-circuit if already in correct location
+    if path == dest {
+        return Ok((dest, Vec::new()));
+    }
 
     // Remember source directory for cleanup
     let src_dir = path.parent().map(Path::to_path_buf);
@@ -252,9 +253,8 @@ pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String
     // Move attachments first
     let warnings = src_dir
         .as_ref()
-        .map_or_else(Vec::new, |dir| move_attachments(dir, &dest_dir, path));
+        .map_or_else(Vec::new, |dir| move_attachments(dir, dest_dir, path));
 
-    let dest = dest_dir.join(filename);
     git::move_file(path, &dest)?;
 
     // Clean up empty source directory if it was a category
@@ -265,37 +265,29 @@ pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String
     Ok((dest, warnings))
 }
 
+/// Moves an item to the archive.
+///
+/// Preserves category folder structure in archive.
+/// Returns the new path and any warnings from moving attachments.
+pub fn archive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String>)> {
+    let category = derive_category(config, path);
+    let archive_base = config.archive_path();
+    let dest_dir = category
+        .as_deref()
+        .map_or_else(|| archive_base.clone(), |cat| archive_base.join(cat));
+
+    move_item_to_dir(config, path, &dest_dir)
+}
+
 /// Moves an item from the archive back to qstack.
 ///
 /// Derives category from archive path structure and restores to same category.
 /// Returns the new path and any warnings from moving attachments.
 pub fn unarchive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<String>)> {
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
-
-    // Derive category from archive path to restore to same category
     let category = derive_category(config, path);
     let dest_dir = target_directory(config, category.as_deref());
-    std::fs::create_dir_all(&dest_dir)?;
 
-    // Remember source directory for cleanup
-    let src_dir = path.parent().map(Path::to_path_buf);
-
-    // Move attachments first
-    let warnings = src_dir
-        .as_ref()
-        .map_or_else(Vec::new, |dir| move_attachments(dir, &dest_dir, path));
-
-    let dest = dest_dir.join(filename);
-    git::move_file(path, &dest)?;
-
-    // Clean up empty archive category directory
-    if let Some(src_dir) = src_dir {
-        cleanup_empty_category_dir(config, &src_dir);
-    }
-
-    Ok((dest, warnings))
+    move_item_to_dir(config, path, &dest_dir)
 }
 
 /// Renames an item file (when title changes).
@@ -320,36 +312,8 @@ pub fn move_to_category(
     path: &Path,
     category: Option<&str>,
 ) -> Result<(PathBuf, Vec<String>)> {
-    let filename = path
-        .file_name()
-        .ok_or_else(|| anyhow::anyhow!("Invalid file path"))?;
-
     let dest_dir = target_directory(config, category);
-    std::fs::create_dir_all(&dest_dir)?;
-
-    let dest = dest_dir.join(filename);
-
-    let warnings = if path == dest {
-        Vec::new()
-    } else {
-        // Remember source directory for cleanup
-        let src_dir = path.parent().map(Path::to_path_buf);
-
-        // Move attachments first
-        let warnings = src_dir
-            .as_ref()
-            .map_or_else(Vec::new, |dir| move_attachments(dir, &dest_dir, path));
-        git::move_file(path, &dest)?;
-
-        // Clean up empty source directory if it was a category
-        if let Some(src_dir) = src_dir {
-            cleanup_empty_category_dir(config, &src_dir);
-        }
-
-        warnings
-    };
-
-    Ok((dest, warnings))
+    move_item_to_dir(config, path, &dest_dir)
 }
 
 /// Removes an empty category directory if it's safe to do so.
@@ -418,8 +382,8 @@ impl AttachmentFileName {
             (&filename[..dot_pos], Some(&filename[dot_pos + 1..]))
         });
 
-        // Split by "-Attachment-"
-        let (item_id, rest) = stem.split_once("-Attachment-")?;
+        // Split by attachment infix
+        let (item_id, rest) = stem.split_once(ATTACHMENT_INFIX)?;
 
         // Extract counter and name
         let (counter_str, name) = rest.split_once('-').unwrap_or((rest, "file"));
@@ -436,11 +400,16 @@ impl AttachmentFileName {
     /// Returns the full filename string.
     pub fn to_filename(&self) -> String {
         self.extension.as_ref().map_or_else(
-            || format!("{}-Attachment-{}-{}", self.item_id, self.counter, self.name),
+            || {
+                format!(
+                    "{}{}{}-{}",
+                    self.item_id, ATTACHMENT_INFIX, self.counter, self.name
+                )
+            },
             |ext| {
                 format!(
-                    "{}-Attachment-{}-{}.{}",
-                    self.item_id, self.counter, self.name, ext
+                    "{}{}{}-{}.{}",
+                    self.item_id, ATTACHMENT_INFIX, self.counter, self.name, ext
                 )
             },
         )
@@ -448,7 +417,7 @@ impl AttachmentFileName {
 
     /// Returns the prefix used to find attachments for an item.
     pub fn prefix_for_item(item_id: &str) -> String {
-        format!("{item_id}-Attachment-")
+        format!("{item_id}{ATTACHMENT_INFIX}")
     }
 }
 

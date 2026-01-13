@@ -9,7 +9,7 @@ mod common;
 
 use common::{create_test_item, create_test_item_with_attachments, GlobalConfigBuilder, TestEnv};
 use qstack::commands::{
-    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListFilter, ListMode, SortBy,
+    self, AttachAddArgs, AttachRemoveArgs, InteractiveArgs, ListMode, ListOptions, SortBy,
     StatusFilter, UpdateArgs,
 };
 
@@ -431,8 +431,8 @@ fn test_attach_remove_from_empty_item() {
 // Attachments List Command Tests (via list --attachments)
 // =============================================================================
 
-fn make_attachments_filter(id: &str) -> ListFilter {
-    ListFilter {
+fn make_attachments_filter(id: &str) -> ListOptions {
+    ListOptions {
         mode: ListMode::Attachments,
         status: StatusFilter::Open,
         labels: Vec::new(),

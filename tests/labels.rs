@@ -8,7 +8,7 @@
 mod common;
 
 use common::{create_test_item, GlobalConfigBuilder, TestEnv};
-use qstack::commands::{self, InteractiveArgs, ListFilter, ListMode, SortBy, StatusFilter};
+use qstack::commands::{self, InteractiveArgs, ListMode, ListOptions, SortBy, StatusFilter};
 
 #[test]
 fn test_labels_empty_project() {
@@ -16,7 +16,7 @@ fn test_labels_empty_project() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     commands::init().expect("init should succeed");
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Labels,
         status: StatusFilter::Open,
         labels: Vec::new(),
@@ -45,7 +45,7 @@ fn test_labels_shows_unique_labels() {
     create_test_item(&env, "260102-BBB", "Task 2", "open", &["bug"], None);
     create_test_item(&env, "260103-CCC", "Task 3", "open", &["feature"], None);
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Labels,
         status: StatusFilter::Open,
         labels: Vec::new(),
@@ -92,7 +92,7 @@ fn test_labels_includes_archived_items() {
     )
     .expect("move to archive");
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Labels,
         status: StatusFilter::Open,
         labels: Vec::new(),
@@ -118,7 +118,7 @@ fn test_labels_without_init() {
     env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
     // Don't init
 
-    let filter = ListFilter {
+    let filter = ListOptions {
         mode: ListMode::Labels,
         status: StatusFilter::Open,
         labels: Vec::new(),

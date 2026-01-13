@@ -19,7 +19,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     constants::{DEFAULT_ARCHIVE_DIR, DEFAULT_STACK_DIR, GLOBAL_CONFIG_FILE},
     id::DEFAULT_PATTERN,
-    storage::git,
 };
 
 thread_local! {
@@ -233,21 +232,6 @@ interactive = {interactive}
     /// Returns the effective archive directory name
     pub fn archive_dir(&self) -> &str {
         self.archive_dir.as_deref().unwrap_or(DEFAULT_ARCHIVE_DIR)
-    }
-
-    /// Resolves the effective user name, checking git config if enabled
-    pub fn resolve_user_name(&self) -> Option<String> {
-        // First check explicit user_name
-        if let Some(ref name) = self.user_name {
-            return Some(name.clone());
-        }
-
-        // Then try git config if enabled
-        if self.use_git_user {
-            return git::user_name();
-        }
-
-        None
     }
 
     /// Prompts the user for their name and saves it to the config.

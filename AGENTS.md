@@ -40,7 +40,7 @@ qstack/
 │   ├── item/
 │   │   ├── mod.rs          # Item struct & Status enum
 │   │   ├── parser.rs       # YAML frontmatter parsing
-│   │   ├── search.rs       # Search/filter logic
+│   │   ├── search.rs       # Search/filter logic (single source of truth for CLI & TUI)
 │   │   └── slug.rs         # Title slugification
 │   ├── config/
 │   │   ├── mod.rs          # Merged config resolver
@@ -104,6 +104,12 @@ qstack/
 - Item schema: `src/item/mod.rs`
 - Config schema: `src/config/*.rs`
 - TUI components: `src/tui/*.rs`
+- Filter logic: `src/item/search.rs`
+
+## Key Internal Types
+- `FilterCriteria` (`item/search.rs`) — Unified filter criteria for item filtering (search, labels, category, author). Used by both CLI commands and TUI.
+- `ListOptions` (`commands/list.rs`) — CLI flags for `list` command (status, sort, labels/categories mode).
+- `InteractiveArgs` (`ui.rs`) — Resolves `--interactive`/`--no-interactive` flags with `is_enabled(config)` method.
 
 ## Dependencies
 - `clap` + `clap_complete` - CLI argument parsing (derive) + shell completions

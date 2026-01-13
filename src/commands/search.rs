@@ -9,7 +9,8 @@ use std::io::IsTerminal;
 
 use anyhow::Result;
 
-use super::list::{collect_items, sort_items, ItemFilter, SortBy};
+use super::list::{collect_items, sort_items, SortBy};
+use crate::item::FilterCriteria;
 use crate::{config::Config, item::search::matches_query, ui, ui::InteractiveArgs};
 
 /// Arguments for the search command
@@ -29,14 +30,8 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
 
     let config = Config::load()?;
 
-    // Collect all items
-    let item_filter = ItemFilter {
-        labels: Vec::new(),
-        author: None,
-        category: None,
-    };
-
-    let mut items = collect_items(&config, args.closed, &item_filter);
+    // Collect all items (no pre-filtering, search applied after)
+    let mut items = collect_items(&config, args.closed, &FilterCriteria::default());
 
     // Filter by search query
     items.retain(|item| matches_query(item, &args.query, args.full_text));
@@ -48,8 +43,8 @@ pub fn execute(args: &SearchArgs) -> Result<()> {
         anyhow::bail!("No items found matching \"{}\"", args.query);
     }
 
-    // Resolve interactive mode
-    let interactive = args.interactive.resolve(config.interactive());
+    // Resolve interactive mode (without terminal check - handled separately)
+    let interactive = args.interactive.is_enabled(&config);
 
     // Non-interactive mode: just print the list
     if !interactive {

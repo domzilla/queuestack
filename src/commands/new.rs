@@ -99,8 +99,8 @@ pub fn execute(args: NewArgs) -> Result<()> {
         ui::process_and_save_attachments(&mut item, &path, &args.attachments)?;
     }
 
-    // Resolve interactive mode
-    let interactive = args.interactive.resolve(config.interactive());
+    // Resolve interactive mode (editor doesn't require terminal check)
+    let interactive = args.interactive.is_enabled(&config);
 
     // Open editor if interactive
     if interactive {
