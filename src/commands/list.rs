@@ -149,11 +149,14 @@ fn collect_unique_categories(items: &[Item], config: &Config) -> Vec<String> {
 }
 
 fn apply_item_filter(config: &Config, item: &Item, filter: &ItemFilter) -> bool {
-    // Label filter (AND logic - item must have ALL specified labels)
-    for label in &filter.labels {
-        if !item.labels().iter().any(|l| l.eq_ignore_ascii_case(label)) {
-            return false;
-        }
+    // Label filter (OR logic - item must have ANY of the specified labels)
+    if !filter.labels.is_empty()
+        && !filter
+            .labels
+            .iter()
+            .any(|label| item.labels().iter().any(|l| l.eq_ignore_ascii_case(label)))
+    {
+        return false;
     }
 
     // Author filter (case-insensitive substring match)

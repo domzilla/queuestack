@@ -188,12 +188,13 @@ impl ItemActionScreen {
                     || item.id.to_lowercase().contains(&search_lower)
                     || item.body.to_lowercase().contains(&search_lower);
 
-                // Label filter (AND logic)
-                let matches_labels = self
-                    .filter_state
-                    .labels
-                    .iter()
-                    .all(|label| item.labels.contains(label));
+                // Label filter (OR logic - item has ANY of the selected labels)
+                let matches_labels = self.filter_state.labels.is_empty()
+                    || self
+                        .filter_state
+                        .labels
+                        .iter()
+                        .any(|label| item.labels.contains(label));
 
                 // Category filter
                 let matches_category = self.filter_state.category.is_none()
