@@ -116,6 +116,7 @@ qstack/
 - `rand` - Random ID generation
 - `owo-colors` - Colored terminal output
 - `ratatui` + `crossterm` - Terminal UI (interactive selection, wizard)
+- `unicode-width` - Display width calculation for CJK/emoji alignment
 
 ## CLI Commands
 ```bash

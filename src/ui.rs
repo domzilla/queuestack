@@ -13,6 +13,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use owo_colors::OwoColorize;
+use unicode_width::UnicodeWidthStr;
 
 use crate::{
     config::Config,
@@ -155,12 +156,13 @@ pub fn select_item<T: AsRef<Item>>(
                 .and_then(|p| storage::derive_category(config, p));
             let category = category_opt.as_deref().unwrap_or("-");
             let title = truncate(item.title(), UI_TITLE_TRUNCATE_LEN);
+            // Use display-width-aware padding for proper alignment with CJK/emoji
             format!(
-                "{:<15} {:>6}  {:<40}  {:<20}  {}",
+                "{:<15} {:>6}  {}  {}  {}",
                 item.id(),
                 status,
-                title,
-                labels,
+                pad_to_width(&title, 40),
+                pad_to_width(&labels, 20),
                 category
             )
         })
@@ -256,15 +258,46 @@ pub fn process_and_save_attachments(
 // String Utilities
 // =============================================================================
 
-/// Truncates a string to the specified maximum character count, adding ellipsis if truncated.
-pub fn truncate(s: &str, max: usize) -> String {
-    let char_count = s.chars().count();
-    if char_count <= max {
+/// Truncates a string to the specified maximum display width, adding ellipsis if truncated.
+///
+/// Uses Unicode display width (accounts for wide CJK characters and emojis)
+/// rather than character count for proper terminal column alignment.
+pub fn truncate(s: &str, max_width: usize) -> String {
+    use unicode_width::UnicodeWidthChar;
+
+    let display_width = s.width();
+    if display_width <= max_width {
         s.to_string()
     } else {
-        // Find the byte index at the (max-1)th character boundary
-        let byte_index = s.char_indices().nth(max - 1).map_or(s.len(), |(i, _)| i);
+        // Find the position where we need to truncate (leaving room for ellipsis)
+        let target_width = max_width.saturating_sub(1); // Reserve 1 column for '…'
+        let mut current_width = 0;
+        let mut byte_index = 0;
+
+        for (i, c) in s.char_indices() {
+            let char_width = c.width().unwrap_or(0);
+            if current_width + char_width > target_width {
+                byte_index = i;
+                break;
+            }
+            current_width += char_width;
+            byte_index = i + c.len_utf8();
+        }
+
         format!("{}…", &s[..byte_index])
+    }
+}
+
+/// Pads a string to the specified display width using spaces.
+///
+/// Uses Unicode display width (accounts for wide CJK characters and emojis)
+/// rather than character count for proper terminal column alignment.
+pub fn pad_to_width(s: &str, width: usize) -> String {
+    let display_width = s.width();
+    if display_width >= width {
+        s.to_string()
+    } else {
+        format!("{}{}", s, " ".repeat(width - display_width))
     }
 }
 
@@ -272,45 +305,72 @@ pub fn truncate(s: &str, max: usize) -> String {
 mod tests {
     use super::*;
 
+    // ==========================================================================
+    // Truncate Tests (display width based)
+    // ==========================================================================
+
     #[test]
     fn test_truncate_ascii() {
-        assert_eq!(truncate("hello", 10), "hello");
-        assert_eq!(truncate("hello world", 5), "hell…");
-        assert_eq!(truncate("abc", 3), "abc");
-        assert_eq!(truncate("abcd", 3), "ab…");
+        // ASCII chars are 1 display column each
+        assert_eq!(truncate("hello", 10), "hello"); // 5 cols ≤ 10
+        assert_eq!(truncate("hello world", 5), "hell…"); // 4 cols + ellipsis
+        assert_eq!(truncate("abc", 3), "abc"); // 3 cols ≤ 3
+        assert_eq!(truncate("abcd", 3), "ab…"); // 2 cols + ellipsis
     }
 
     #[test]
-    fn test_truncate_utf8_no_truncation() {
-        // No truncation needed - should return as-is
-        assert_eq!(truncate("日本語", 5), "日本語");
-        assert_eq!(truncate("über", 10), "über");
-        assert_eq!(truncate("한글", 3), "한글");
+    fn test_truncate_cjk() {
+        // CJK characters are 2 display columns each
+        // "日本語" = 6 columns, "日本語中文" = 10 columns
+        assert_eq!(truncate("日本語", 6), "日本語"); // 6 cols ≤ 6
+        assert_eq!(truncate("日本語", 5), "日本…"); // 4 cols + ellipsis = 5
+        assert_eq!(truncate("日本語中文", 5), "日本…"); // 4 cols + ellipsis = 5
+        assert_eq!(truncate("日本語中文", 4), "日…"); // 2 cols + ellipsis = 3 (can't fit 4)
     }
 
     #[test]
-    fn test_truncate_utf8_with_truncation() {
-        // Truncate at character boundaries, not byte boundaries
-        // Result is (max-1) chars + ellipsis = max chars total
-        assert_eq!(truncate("日本語中文", 3), "日本…"); // 2 chars + …
-        assert_eq!(truncate("über änderung", 5), "über…"); // 4 chars + …
-        assert_eq!(truncate("한글 제목입니다", 4), "한글 …"); // 3 chars + …
-        assert_eq!(truncate("العربية", 4), "الع…"); // 3 chars + …
+    fn test_truncate_mixed_width() {
+        // "Test: 日本語" = 6 (ASCII) + 6 (CJK) = 12 display columns
+        assert_eq!(truncate("Test: 日本語", 12), "Test: 日本語"); // Exact fit
+        assert_eq!(truncate("Test: 日本語", 11), "Test: 日本…"); // 10 cols + ellipsis
+        assert_eq!(truncate("Test: 日本語", 9), "Test: 日…"); // 8 cols + ellipsis
+
+        // "über" = 4 columns (ü is 1 column)
+        assert_eq!(truncate("über", 4), "über");
+        assert_eq!(truncate("über", 3), "üb…");
     }
 
     #[test]
-    fn test_truncate_mixed_ascii_utf8() {
-        // Mixed content should count characters correctly
-        // "Test UTF-8: 日本語" is 15 chars (T,e,s,t, ,U,T,F,-,8,:, ,日,本,語)
-        assert_eq!(truncate("Test UTF-8: 日本語", 15), "Test UTF-8: 日本語");
-        assert_eq!(truncate("Test UTF-8: 日本語", 14), "Test UTF-8: 日…"); // 13 chars + …
-        assert_eq!(truncate("café résumé", 6), "café …"); // 5 chars + …
-    }
-
-    #[test]
-    fn test_truncate_empty_and_edge_cases() {
+    fn test_truncate_edge_cases() {
         assert_eq!(truncate("", 5), "");
         assert_eq!(truncate("a", 1), "a");
-        assert_eq!(truncate("日", 1), "日");
+        // CJK char is 2 cols, can't fit in 1 col, so truncate to just ellipsis
+        assert_eq!(truncate("日", 1), "…");
+        assert_eq!(truncate("日", 2), "日"); // Exact fit
+        assert_eq!(truncate("日", 3), "日"); // 2 cols ≤ 3
+    }
+
+    // ==========================================================================
+    // Pad to Width Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_pad_to_width_ascii() {
+        assert_eq!(pad_to_width("hello", 10), "hello     ");
+        assert_eq!(pad_to_width("hello", 5), "hello");
+        assert_eq!(pad_to_width("hello", 3), "hello"); // No truncation, just returns as-is
+    }
+
+    #[test]
+    fn test_pad_to_width_cjk() {
+        // "日本" = 4 display columns
+        assert_eq!(pad_to_width("日本", 6), "日本  "); // 4 cols + 2 spaces = 6
+        assert_eq!(pad_to_width("日本", 4), "日本"); // Exact fit
+    }
+
+    #[test]
+    fn test_pad_to_width_mixed() {
+        // "a日b" = 1 + 2 + 1 = 4 display columns
+        assert_eq!(pad_to_width("a日b", 6), "a日b  ");
     }
 }
