@@ -8,10 +8,15 @@
 
 use std::cmp::Reverse;
 use std::path::PathBuf;
+use std::process::Command;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use owo_colors::OwoColorize;
 
-use crate::{config::Config, item::Item, storage, ui, ui::InteractiveArgs};
+use crate::{
+    commands, config::Config, item::Item, storage, tui::screens::ItemAction, ui,
+    ui::InteractiveArgs,
+};
 
 /// Sort order for listing
 #[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
@@ -203,12 +208,141 @@ fn execute_items(filter: &ListFilter, config: &Config) -> Result<()> {
         return Ok(());
     }
 
-    // Interactive: TUI selection
-    let Some(selection) = ui::select_item("Select an item to open", &items, config)? else {
+    // Interactive: TUI selection with actions
+    let Some(action) = ui::select_item_with_actions("Select an item", &items, config)? else {
         return Ok(()); // User cancelled
     };
-    let item = &items[selection];
-    ui::open_item_in_editor(item, config)?;
+
+    handle_item_action(action, config)?;
+
+    Ok(())
+}
+
+/// Handle an action selected from the item action popup.
+fn handle_item_action(action: ItemAction, config: &Config) -> Result<()> {
+    match action {
+        ItemAction::View(path) => {
+            // Open in editor
+            let item = Item::load(&path)?;
+            ui::open_item_in_editor(&item, config)?;
+        }
+        ItemAction::Edit(path) => {
+            // Launch edit wizard
+            execute_edit_wizard(&path, config)?;
+        }
+        ItemAction::Close(path) => {
+            commands::execute_close(None, Some(path))?;
+        }
+        ItemAction::Reopen(path) => {
+            commands::execute_reopen(None, Some(path))?;
+        }
+        ItemAction::Delete(path) => {
+            // Show confirmation dialog
+            let item = Item::load(&path)?;
+            let message = format!("Delete '{}'?", item.title());
+            if ui::confirm(&message)? == Some(true) {
+                // Move to trash
+                let status = Command::new("trash")
+                    .arg(&path)
+                    .status()
+                    .context("Failed to execute trash command")?;
+
+                if status.success() {
+                    println!(
+                        "{} Moved to trash: {}",
+                        "✓".green(),
+                        config.relative_path(&path).display()
+                    );
+                } else {
+                    anyhow::bail!("Failed to move item to trash");
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Execute the edit wizard for an existing item.
+fn execute_edit_wizard(path: &std::path::Path, config: &Config) -> Result<()> {
+    use crate::tui::{self, screens::NewItemWizard};
+
+    // Load the item
+    let item = Item::load(path)?;
+
+    // Collect existing metadata
+    let (existing_categories, existing_labels) = commands::new::collect_existing_metadata(config);
+
+    // Get current category from path
+    let current_category = storage::derive_category(config, path);
+
+    // Create pre-populated wizard
+    let wizard = NewItemWizard::new(existing_categories, existing_labels)
+        .with_title(item.title())
+        .with_content(&item.body)
+        .with_attachments(item.attachments().to_vec())
+        .with_category(current_category.clone())
+        .with_labels(item.labels())
+        .for_editing();
+
+    // Run wizard
+    let Some(output) = tui::run(wizard)? else {
+        println!("{}", "Cancelled.".dimmed());
+        return Ok(());
+    };
+
+    // Apply changes
+    let mut updated = item;
+    updated.set_title(output.title);
+    updated.body = output.content;
+    updated.frontmatter.labels = output.labels;
+
+    // Handle new attachments
+    if !output.attachments.is_empty() {
+        // For new attachments, we need to process them
+        let item_dir = updated
+            .attachment_dir()
+            .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?
+            .to_path_buf();
+        let item_id = updated.id().to_string();
+
+        for source in &output.attachments {
+            // Skip existing attachments
+            if updated.attachments().contains(source) {
+                continue;
+            }
+            // Process new attachment
+            if let Ok(result) =
+                storage::process_attachment(source, &mut updated, &item_dir, &item_id)
+            {
+                match result {
+                    storage::AttachmentResult::UrlAdded(url) => {
+                        println!("  {} {}", "+".green(), url);
+                    }
+                    storage::AttachmentResult::FileCopied { original, new_name } => {
+                        println!("  {} {} -> {}", "+".green(), original, new_name);
+                    }
+                    storage::AttachmentResult::FileNotFound(p) => {
+                        eprintln!("  {} File not found: {}", "!".yellow(), p);
+                    }
+                }
+            }
+        }
+    }
+
+    // Save the item
+    updated.save(path)?;
+
+    // Handle category change - need to move file
+    if output.category == current_category {
+        ui::print_success("Updated", config, path);
+    } else {
+        // Move to new category
+        let (new_path, warnings) =
+            storage::move_to_category(config, path, output.category.as_deref())?;
+        ui::print_warnings(&warnings);
+        ui::print_success("Updated", config, &new_path);
+    }
 
     Ok(())
 }

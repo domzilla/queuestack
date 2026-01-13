@@ -22,10 +22,14 @@ use crate::{
     item::{Item, Status},
     storage::{self, AttachmentResult},
     tui::screens::{
-        select_from_list as tui_select, select_from_list_filtered as tui_select_filtered,
-        select_from_list_with_header,
+        confirm as tui_confirm, select_from_list as tui_select,
+        select_from_list_filtered as tui_select_filtered, select_from_list_with_header,
+        select_item_with_actions as tui_select_item_with_actions, ItemAction,
     },
 };
+
+// Re-export ItemAction for commands
+pub use crate::tui::screens::ItemAction as ItemActionKind;
 
 // =============================================================================
 // Aggregation Utilities
@@ -169,6 +173,27 @@ pub fn select_item<T: AsRef<Item>>(
         .collect();
 
     select_from_list_with_header(prompt, &header, &options)
+}
+
+/// Interactive item selection with action popup.
+///
+/// Shows items in a list and when an item is selected, shows a popup menu
+/// with actions (View, Edit, Close/Reopen, Attachments, Delete).
+/// Returns the selected action, or `Ok(None)` if cancelled.
+pub fn select_item_with_actions<T: AsRef<Item>>(
+    prompt: &str,
+    items: &[T],
+    config: &Config,
+) -> Result<Option<ItemAction>> {
+    tui_select_item_with_actions(prompt, items, config)
+}
+
+/// Show a confirmation dialog.
+///
+/// Returns `Ok(Some(true))` if confirmed, `Ok(Some(false))` if declined,
+/// or `Ok(None)` if cancelled (Esc/Ctrl+C).
+pub fn confirm(message: &str) -> Result<Option<bool>> {
+    tui_confirm(message)
 }
 
 /// Opens an item in the editor and prints its relative path.

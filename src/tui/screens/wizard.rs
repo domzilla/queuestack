@@ -102,6 +102,8 @@ pub struct NewItemWizard<'a> {
     labels_list: MultiSelect,
     label_input: TextInput,
     label_input_mode: bool,
+    /// Whether this wizard is editing an existing item (changes header).
+    is_editing: bool,
 }
 
 impl NewItemWizard<'_> {
@@ -132,7 +134,72 @@ impl NewItemWizard<'_> {
                 .with_action_item_last(),
             label_input: TextInput::new("New label"),
             label_input_mode: false,
+            is_editing: false,
         }
+    }
+
+    /// Pre-populate the title field.
+    #[must_use]
+    pub fn with_title(mut self, title: &str) -> Self {
+        self.title_input = self.title_input.with_initial(title);
+        self
+    }
+
+    /// Pre-populate the content field.
+    #[must_use]
+    pub fn with_content(mut self, content: &str) -> Self {
+        self.content_area = self.content_area.with_initial(content);
+        self
+    }
+
+    /// Pre-populate the attachments list.
+    #[must_use]
+    pub fn with_attachments(mut self, attachments: Vec<String>) -> Self {
+        self.attachments = attachments;
+        self
+    }
+
+    /// Pre-populate the category and select it in the list.
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value, clippy::assigning_clones)]
+    pub fn with_category(mut self, category: Option<String>) -> Self {
+        self.category = category.clone();
+        // Select the matching item in the category list
+        // Index 0 = "(none)", 1..n = existing categories, last = "Create new..."
+        let select_idx = match &category {
+            None => 0, // "(none)"
+            Some(cat) => {
+                // Find the category in existing_categories
+                self.existing_categories
+                    .iter()
+                    .position(|c| c == cat)
+                    .map_or(0, |pos| pos + 1) // +1 because "(none)" is at index 0
+            }
+        };
+        // Rebuild category list with selection
+        let mut category_items = vec!["(none)".to_string()];
+        category_items.extend(self.existing_categories.iter().cloned());
+        category_items.push("Create new...".to_string());
+        self.category_list = SelectList::new(category_items).with_title("Category");
+        // Select the appropriate index
+        for _ in 0..select_idx {
+            self.category_list.select_next();
+        }
+        self
+    }
+
+    /// Pre-select labels.
+    #[must_use]
+    pub fn with_labels(mut self, labels: &[String]) -> Self {
+        self.labels_list = self.labels_list.with_selected(labels);
+        self
+    }
+
+    /// Mark this wizard as editing mode (changes header text).
+    #[must_use]
+    pub const fn for_editing(mut self) -> Self {
+        self.is_editing = true;
+        self
     }
 
     fn can_advance(&self) -> bool {
@@ -473,11 +540,16 @@ impl NewItemWizard<'_> {
             })
             .collect();
 
+        let mode = if self.is_editing {
+            "Edit Item"
+        } else {
+            "New Item"
+        };
         let header = Paragraph::new(Line::from(indicators)).block(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan))
-                .title(format!(" New Item - Step {step_num} of {total} ")),
+                .title(format!(" {mode} - Step {step_num} of {total} ")),
         );
 
         frame.render_widget(header, area);

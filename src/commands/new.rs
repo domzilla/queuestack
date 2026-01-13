@@ -114,7 +114,7 @@ pub fn execute(args: NewArgs) -> Result<()> {
 }
 
 /// Collect existing categories and labels from all items.
-fn collect_existing_metadata(config: &Config) -> (Vec<String>, Vec<String>) {
+pub fn collect_existing_metadata(config: &Config) -> (Vec<String>, Vec<String>) {
     let mut categories: HashSet<String> = HashSet::new();
     let mut labels: HashSet<String> = HashSet::new();
 

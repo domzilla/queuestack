@@ -14,7 +14,7 @@ use crate::tui::event::{EventHandler, TuiEvent};
 use crate::tui::terminal::TerminalGuard;
 
 /// Result of a TUI application.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppResult<T> {
     /// Application completed with a value
     Done(T),
