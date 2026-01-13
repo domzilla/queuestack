@@ -178,14 +178,22 @@ pub fn select_item<T: AsRef<Item>>(
 /// Interactive item selection with action popup.
 ///
 /// Shows items in a list and when an item is selected, shows a popup menu
-/// with actions (View, Edit, Close/Reopen, Attachments, Delete).
+/// with actions (View, Edit, Close/Reopen, Delete).
 /// Returns the selected action, or `Ok(None)` if cancelled.
 pub fn select_item_with_actions<T: AsRef<Item>>(
     prompt: &str,
     items: &[T],
     config: &Config,
+    available_labels: Vec<String>,
+    available_categories: Vec<String>,
 ) -> Result<Option<ItemAction>> {
-    tui_select_item_with_actions(prompt, items, config)
+    tui_select_item_with_actions(
+        prompt,
+        items,
+        config,
+        available_labels,
+        available_categories,
+    )
 }
 
 /// Show a confirmation dialog.

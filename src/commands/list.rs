@@ -120,6 +120,34 @@ pub fn sort_items(items: &mut [Item], sort: SortBy) {
     }
 }
 
+/// Collect unique labels from items, sorted alphabetically.
+fn collect_unique_labels(items: &[Item]) -> Vec<String> {
+    let mut labels: Vec<String> = items
+        .iter()
+        .flat_map(|item| item.labels().to_vec())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    labels.sort();
+    labels
+}
+
+/// Collect unique categories from items, sorted alphabetically.
+fn collect_unique_categories(items: &[Item], config: &Config) -> Vec<String> {
+    let mut categories: Vec<String> = items
+        .iter()
+        .filter_map(|item| {
+            item.path
+                .as_ref()
+                .and_then(|p| storage::derive_category(config, p))
+        })
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+    categories.sort();
+    categories
+}
+
 fn apply_item_filter(config: &Config, item: &Item, filter: &ItemFilter) -> bool {
     // Label filter (AND logic - item must have ALL specified labels)
     for label in &filter.labels {
@@ -208,8 +236,19 @@ fn execute_items(filter: &ListFilter, config: &Config) -> Result<()> {
         return Ok(());
     }
 
+    // Collect available labels and categories for filter overlay
+    let available_labels = collect_unique_labels(&items);
+    let available_categories = collect_unique_categories(&items, config);
+
     // Interactive: TUI selection with actions
-    let Some(action) = ui::select_item_with_actions("Select an item", &items, config)? else {
+    let Some(action) = ui::select_item_with_actions(
+        "Select an item",
+        &items,
+        config,
+        available_labels,
+        available_categories,
+    )?
+    else {
         return Ok(()); // User cancelled
     };
 
