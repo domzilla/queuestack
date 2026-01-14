@@ -64,6 +64,22 @@ impl TextInput {
         self.content.chars().count()
     }
 
+    /// Insert text at the current cursor position.
+    ///
+    /// Used for paste operations. Multi-line content is flattened
+    /// (newlines replaced with spaces) since this is a single-line input.
+    pub fn insert_text(&mut self, text: &str) {
+        // Flatten to single line - replace newlines with spaces
+        let flattened: String = text
+            .chars()
+            .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+            .collect();
+
+        let byte_idx = self.cursor_byte_index();
+        self.content.insert_str(byte_idx, &flattened);
+        self.cursor += flattened.chars().count();
+    }
+
     /// Handle a key event.
     ///
     /// Returns `true` if the event was handled.

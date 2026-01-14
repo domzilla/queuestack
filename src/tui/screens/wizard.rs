@@ -474,10 +474,26 @@ impl TuiApp for NewItemWizard<'_> {
     fn handle_event(&mut self, event: &TuiEvent) -> Option<AppResult<Self::Output>> {
         match event {
             TuiEvent::Paste(content) => {
-                // Handle paste - directly add to attachments list if on that step
-                if matches!(self.step, WizardStep::Attachments) {
-                    let paths = parse_shell_escaped_paths(content);
-                    self.attachments.extend(paths);
+                // Handle paste based on current step/context
+                match self.step {
+                    WizardStep::Title => {
+                        self.title_input.insert_text(content);
+                    }
+                    WizardStep::Content => {
+                        self.content_area.insert_text(content);
+                    }
+                    WizardStep::Attachments => {
+                        // Parse as file paths
+                        let paths = parse_shell_escaped_paths(content);
+                        self.attachments.extend(paths);
+                    }
+                    WizardStep::Category if self.category_input_mode => {
+                        self.category_input.insert_text(content);
+                    }
+                    WizardStep::Labels if self.label_input_mode => {
+                        self.label_input.insert_text(content);
+                    }
+                    _ => {}
                 }
                 None
             }

@@ -39,6 +39,10 @@ impl TuiApp for PromptScreen {
 
     fn handle_event(&mut self, event: &TuiEvent) -> Option<AppResult<Self::Output>> {
         match event {
+            TuiEvent::Paste(content) => {
+                self.input.insert_text(content);
+                None
+            }
             TuiEvent::Key(key) => {
                 // Handle Ctrl+C
                 if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {

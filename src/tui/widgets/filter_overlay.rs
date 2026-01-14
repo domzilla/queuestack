@@ -159,6 +159,11 @@ impl FilterOverlay {
         }
     }
 
+    /// Insert text into the search input (for paste support).
+    pub fn insert_search_text(&mut self, text: &str) {
+        self.search_input.insert_text(text);
+    }
+
     /// Handle a key event.
     pub fn handle_key(&mut self, key: KeyEvent) -> Option<FilterOverlayResult> {
         match key.code {

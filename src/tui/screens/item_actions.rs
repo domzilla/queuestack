@@ -402,32 +402,37 @@ impl ItemActionScreen {
 
     /// Handle events while showing the filter overlay.
     fn handle_filter(&mut self, event: &TuiEvent) -> Option<AppResult<ItemAction>> {
-        if let TuiEvent::Key(key) = event {
-            // Handle Ctrl+C
-            if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
-                return Some(AppResult::Cancelled);
-            }
+        // Get mutable reference to overlay
+        let ScreenState::ShowingFilter { overlay } = &mut self.state else {
+            return None;
+        };
 
-            // Get mutable reference to overlay
-            let ScreenState::ShowingFilter { overlay } = &mut self.state else {
-                return None;
-            };
-
-            match overlay.handle_key(*key) {
-                Some(FilterOverlayResult::Applied(new_state)) => {
-                    self.filter_state = new_state;
-                    self.apply_filter();
-                    self.state = ScreenState::Browsing;
-                    None
-                }
-                Some(FilterOverlayResult::Cancelled) => {
-                    self.state = ScreenState::Browsing;
-                    None
-                }
-                None => None,
+        match event {
+            TuiEvent::Paste(content) => {
+                overlay.insert_search_text(content);
+                None
             }
-        } else {
-            None
+            TuiEvent::Key(key) => {
+                // Handle Ctrl+C
+                if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+                    return Some(AppResult::Cancelled);
+                }
+
+                match overlay.handle_key(*key) {
+                    Some(FilterOverlayResult::Applied(new_state)) => {
+                        self.filter_state = new_state;
+                        self.apply_filter();
+                        self.state = ScreenState::Browsing;
+                        None
+                    }
+                    Some(FilterOverlayResult::Cancelled) => {
+                        self.state = ScreenState::Browsing;
+                        None
+                    }
+                    None => None,
+                }
+            }
+            _ => None,
         }
     }
 

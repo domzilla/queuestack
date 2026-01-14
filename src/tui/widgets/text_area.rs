@@ -47,6 +47,13 @@ impl TextAreaWidget<'_> {
         self.textarea.is_empty()
     }
 
+    /// Insert text at the current cursor position.
+    ///
+    /// Used for paste operations. Supports multi-line text.
+    pub fn insert_text(&mut self, text: &str) {
+        self.textarea.insert_str(text);
+    }
+
     /// Handle a key event.
     ///
     /// Returns `true` if the event was consumed by the text area.
