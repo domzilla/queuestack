@@ -268,3 +268,46 @@ Follow the Rust style guide: `~/Agents/Style/rust-style-guide.md`
 References:
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
 - [Clippy Lints](https://rust-lang.github.io/rust-clippy/)
+
+## Homebrew Distribution
+
+qstack is distributed via Homebrew tap: `domzilla/tap`
+
+### Release Workflow
+
+Releases are automated via GitHub Actions (`.github/workflows/release.yml`):
+
+1. **Bump version** in `Cargo.toml`
+2. **Commit**: `git commit -am "Bump version to X.Y.Z"`
+3. **Release**: `homebrew-publish` (tags and pushes)
+4. **CI automatically**:
+   - Builds bottles for macOS arm64 and x86_64
+   - Creates GitHub release with bottles attached
+   - Updates formula in `domzilla/homebrew-tap` with SHA256 hashes
+
+### Related Repositories
+
+| Repository | Purpose |
+|------------|---------|
+| `domzilla/homebrew-tap` | Homebrew tap with qstack formula |
+| Local: `/Users/dom/GIT/Homebrew/homebrew-tap` | Local checkout of tap |
+
+### Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `.homebrew-publish` | Config for `homebrew-publish` script |
+| `.github/workflows/release.yml` | GitHub Actions bottle build workflow |
+
+### GitHub Secrets Required
+
+| Secret | Purpose |
+|--------|---------|
+| `HOMEBREW_TAP_TOKEN` | PAT with write access to `homebrew-tap` repo |
+
+### Manual Formula Update
+
+If CI fails, manually update the formula:
+1. Get source SHA256: `curl -sL <tarball_url> | shasum -a 256`
+2. Edit `/Users/dom/GIT/Homebrew/homebrew-tap/Formula/qstack.rb`
+3. Commit and push the tap repo

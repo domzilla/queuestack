@@ -16,9 +16,20 @@ Items are stored as plain Markdown files—human-readable, grep-friendly, and ea
 
 ## Installation
 
+### Homebrew (macOS)
+
+```bash
+brew tap domzilla/tap
+brew install qstack
+```
+
+### From Source
+
 ```bash
 cargo install --path .
 ```
+
+### Post-Install Setup
 
 Run the one-time setup to create your config and install shell completions:
 
