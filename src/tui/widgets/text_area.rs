@@ -3,7 +3,10 @@
 //! Wraps edtui for multi-line editing with line wrapping support.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use edtui::{EditorEventHandler, EditorMode, EditorState, EditorTheme, EditorView, Lines};
+use edtui::{
+    actions::{Execute, MoveWordBackward, MoveWordForward},
+    EditorEventHandler, EditorMode, EditorState, EditorTheme, EditorView, Lines,
+};
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
@@ -80,20 +83,30 @@ impl TextAreaWidget {
             return false;
         }
 
-        // Custom line-wrapping arrow navigation (standard editor behavior)
+        // Custom navigation (standard editor behavior)
         match key.code {
+            // Option+Left: word backward
+            KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => {
+                MoveWordBackward(1).execute(&mut self.state);
+                return true;
+            }
+            // Option+Right: word forward
+            KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => {
+                MoveWordForward(1).execute(&mut self.state);
+                return true;
+            }
+            // Left at start of line: wrap to end of previous line
             KeyCode::Left if self.state.cursor.col == 0 && self.state.cursor.row > 0 => {
-                // Move to end of previous line
                 self.state.cursor.row -= 1;
                 self.state.cursor.col =
                     self.state.lines.len_col(self.state.cursor.row).unwrap_or(0);
                 return true;
             }
+            // Right at end of line: wrap to start of next line
             KeyCode::Right => {
                 let line_len = self.state.lines.len_col(self.state.cursor.row).unwrap_or(0);
                 let last_row = self.state.lines.len().saturating_sub(1);
                 if self.state.cursor.col >= line_len && self.state.cursor.row < last_row {
-                    // Move to start of next line
                     self.state.cursor.row += 1;
                     self.state.cursor.col = 0;
                     return true;
