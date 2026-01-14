@@ -296,6 +296,7 @@ fn execute_edit_wizard(path: &std::path::Path, config: &Config) -> Result<()> {
         .with_attachments(item.attachments().to_vec())
         .with_category(current_category.clone())
         .with_labels(item.labels())
+        .with_item_id(item.id())
         .for_editing();
 
     // Run wizard

@@ -104,6 +104,8 @@ pub struct NewItemWizard<'a> {
     label_input_mode: bool,
     /// Whether this wizard is editing an existing item (changes header).
     is_editing: bool,
+    /// The ID of the item being edited (shown in header when editing).
+    item_id: Option<String>,
 }
 
 impl NewItemWizard<'_> {
@@ -135,6 +137,7 @@ impl NewItemWizard<'_> {
             label_input: TextInput::new("New label"),
             label_input_mode: false,
             is_editing: false,
+            item_id: None,
         }
     }
 
@@ -199,6 +202,13 @@ impl NewItemWizard<'_> {
     #[must_use]
     pub const fn for_editing(mut self) -> Self {
         self.is_editing = true;
+        self
+    }
+
+    /// Set the item ID to display in the header when editing.
+    #[must_use]
+    pub fn with_item_id(mut self, id: impl Into<String>) -> Self {
+        self.item_id = Some(id.into());
         self
     }
 
@@ -557,9 +567,11 @@ impl NewItemWizard<'_> {
             .collect();
 
         let mode = if self.is_editing {
-            "Edit Item"
+            self.item_id
+                .as_ref()
+                .map_or_else(|| "Edit Item".to_string(), |id| format!("Edit {id}"))
         } else {
-            "New Item"
+            "New Item".to_string()
         };
         let header = Paragraph::new(Line::from(indicators)).block(
             Block::default()
