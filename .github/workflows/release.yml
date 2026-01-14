@@ -18,7 +18,7 @@ jobs:
           - os: macos
             arch: arm64
             runner: macos-15
-            bottle_tag: arm64_sequoia
+            bottle_tag: arm64_sonoma
           - os: macos
             arch: x86_64
             runner: macos-15-intel
@@ -110,7 +110,7 @@ jobs:
         id: bottles
         run: |
           cd bottles
-          echo "arm64_sha=$(cat qstack--${{ steps.version.outputs.version }}.arm64_sequoia.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "arm64_sha=$(cat qstack--${{ steps.version.outputs.version }}.arm64_sonoma.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
           echo "x86_64_sha=$(cat qstack--${{ steps.version.outputs.version }}.sonoma.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Output bottle info
@@ -122,7 +122,7 @@ jobs:
           echo '```ruby' >> $GITHUB_STEP_SUMMARY
           echo "bottle do" >> $GITHUB_STEP_SUMMARY
           echo '  root_url "https://github.com/domzilla/qstack/releases/download/${{ github.ref_name }}"' >> $GITHUB_STEP_SUMMARY
-          echo '  sha256 cellar: :any_skip_relocation, arm64_sequoia: "${{ steps.bottles.outputs.arm64_sha }}"' >> $GITHUB_STEP_SUMMARY
+          echo '  sha256 cellar: :any_skip_relocation, arm64_sonoma: "${{ steps.bottles.outputs.arm64_sha }}"' >> $GITHUB_STEP_SUMMARY
           echo '  sha256 cellar: :any_skip_relocation, sonoma: "${{ steps.bottles.outputs.x86_64_sha }}"' >> $GITHUB_STEP_SUMMARY
           echo "end" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
@@ -155,7 +155,7 @@ jobs:
         id: bottles
         run: |
           cd bottles
-          echo "arm64_sha=$(cat qstack--${{ steps.version.outputs.version }}.arm64_sequoia.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "arm64_sha=$(cat qstack--${{ steps.version.outputs.version }}.arm64_sonoma.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
           echo "x86_64_sha=$(cat qstack--${{ steps.version.outputs.version }}.sonoma.bottle.tar.gz.sha256 | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
       - name: Checkout homebrew-tap
@@ -184,7 +184,7 @@ jobs:
 
             bottle do
               root_url "https://github.com/domzilla/qstack/releases/download/TAG_PLACEHOLDER"
-              sha256 cellar: :any_skip_relocation, arm64_sequoia: "ARM64_SHA_PLACEHOLDER"
+              sha256 cellar: :any_skip_relocation, arm64_sonoma: "ARM64_SHA_PLACEHOLDER"
               sha256 cellar: :any_skip_relocation, sonoma: "X86_64_SHA_PLACEHOLDER"
             end
 
@@ -197,8 +197,7 @@ jobs:
             end
 
             test do
-              system bin/"qstack", "--version"
-              system bin/"qstack", "init"
+              assert_match version.to_s, shell_output("#{bin}/qstack --version")
             end
           end
           FORMULA
