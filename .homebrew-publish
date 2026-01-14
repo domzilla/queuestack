@@ -1,0 +1,20 @@
+# Homebrew formula publishing configuration for qstack
+
+formula: qstack
+github_repo: https://github.com/domzilla/qstack
+tap_path: /Users/dom/GIT/Homebrew/homebrew-tap
+
+description: "Minimal, scriptable task and issue tracker for agent-driven workflows"
+license: MIT
+homepage: https://github.com/domzilla/qstack
+
+build_system: cargo
+
+completions_command: "qstack completions"
+
+test_commands:
+  - "{bin}/qstack --version"
+  - "{bin}/qstack init"
+
+release_branch: master
+tag_prefix: "v"
