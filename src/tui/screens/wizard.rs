@@ -88,10 +88,10 @@ pub struct WizardOutput {
 }
 
 /// New item wizard application.
-pub struct NewItemWizard<'a> {
+pub struct NewItemWizard {
     step: WizardStep,
     title_input: TextInput,
-    content_area: TextAreaWidget<'a>,
+    content_area: TextAreaWidget,
     attachments: Vec<String>,
     attachment_input: TextInput,
     category: Option<String>,
@@ -108,7 +108,7 @@ pub struct NewItemWizard<'a> {
     item_id: Option<String>,
 }
 
-impl NewItemWizard<'_> {
+impl NewItemWizard {
     /// Create a new wizard with existing categories and labels.
     pub fn new(existing_categories: Vec<String>, existing_labels: Vec<String>) -> Self {
         // Build category list: (none), existing categories, Create new...
@@ -478,7 +478,7 @@ impl NewItemWizard<'_> {
     }
 }
 
-impl TuiApp for NewItemWizard<'_> {
+impl TuiApp for NewItemWizard {
     type Output = WizardOutput;
 
     fn handle_event(&mut self, event: &TuiEvent) -> Option<AppResult<Self::Output>> {
@@ -540,7 +540,7 @@ impl TuiApp for NewItemWizard<'_> {
     }
 }
 
-impl NewItemWizard<'_> {
+impl NewItemWizard {
     fn render_header(&self, frame: &mut Frame, area: Rect) {
         let step_num = self.step.index() + 1;
         let total = WizardStep::ALL.len();

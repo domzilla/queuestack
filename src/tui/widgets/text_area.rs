@@ -1,29 +1,29 @@
 //! Multi-line text area widget.
 //!
-//! Wraps tui-textarea for multi-line editing.
+//! Wraps edtui for multi-line editing with line wrapping support.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use edtui::{EditorEventHandler, EditorState, EditorTheme, EditorView, Lines};
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
     widgets::{Block, Borders},
     Frame,
 };
-use tui_textarea::TextArea;
 
-/// Multi-line text area widget.
-pub struct TextAreaWidget<'a> {
-    textarea: TextArea<'a>,
+/// Multi-line text area widget with line wrapping.
+pub struct TextAreaWidget {
+    state: EditorState,
+    event_handler: EditorEventHandler,
     label: String,
 }
 
-impl TextAreaWidget<'_> {
+impl TextAreaWidget {
     /// Create a new text area with the given label.
     pub fn new(label: impl Into<String>) -> Self {
-        let mut textarea = TextArea::default();
-        textarea.set_cursor_line_style(Style::default());
         Self {
-            textarea,
+            state: EditorState::default(),
+            event_handler: EditorEventHandler::default(),
             label: label.into(),
         }
     }
@@ -31,27 +31,26 @@ impl TextAreaWidget<'_> {
     /// Set initial content.
     #[must_use]
     pub fn with_initial(mut self, content: &str) -> Self {
-        let lines: Vec<String> = content.lines().map(String::from).collect();
-        self.textarea = TextArea::new(lines);
-        self.textarea.set_cursor_line_style(Style::default());
+        self.state = EditorState::new(Lines::from(content));
         self
     }
 
     /// Get the current content as a string.
     pub fn content(&self) -> String {
-        self.textarea.lines().join("\n")
+        self.state.lines.to_string()
     }
 
     /// Check if empty.
     pub fn is_empty(&self) -> bool {
-        self.textarea.is_empty()
+        self.state.lines.is_empty()
     }
 
     /// Insert text at the current cursor position.
     ///
     /// Used for paste operations. Supports multi-line text.
     pub fn insert_text(&mut self, text: &str) {
-        self.textarea.insert_str(text);
+        self.event_handler
+            .on_paste_event(text.to_string(), &mut self.state);
     }
 
     /// Handle a key event.
@@ -76,7 +75,7 @@ impl TextAreaWidget<'_> {
             return false;
         }
 
-        self.textarea.input(key);
+        self.event_handler.on_key_event(key, &mut self.state);
         true
     }
 
@@ -93,20 +92,21 @@ impl TextAreaWidget<'_> {
             .border_style(border_style)
             .title(format!(" {} ", self.label));
 
-        self.textarea.set_block(block);
+        let theme = EditorTheme::default()
+            .block(block)
+            .cursor_style(if focused {
+                Style::default().bg(Color::White).fg(Color::Black)
+            } else {
+                Style::default()
+            });
 
-        if focused {
-            self.textarea
-                .set_cursor_style(Style::default().bg(Color::White).fg(Color::Black));
-        } else {
-            self.textarea.set_cursor_style(Style::default());
-        }
+        let view = EditorView::new(&mut self.state).theme(theme).wrap(true);
 
-        frame.render_widget(&self.textarea, area);
+        frame.render_widget(view, area);
     }
 }
 
-impl Clone for TextAreaWidget<'_> {
+impl Clone for TextAreaWidget {
     fn clone(&self) -> Self {
         let content = self.content();
         Self::new(self.label.clone()).with_initial(&content)
