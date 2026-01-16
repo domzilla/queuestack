@@ -101,18 +101,12 @@ impl ProjectConfig {
 
     /// Saves project config with detailed comments for all options.
     ///
-    /// The `stack_dir`, `archive_dir`, and `template_dir` parameters are written as explicit values,
-    /// while all other options are commented out (falling back to global config).
-    pub fn save_with_comments(
-        project_root: &Path,
-        stack_dir: &str,
-        archive_dir: &str,
-        template_dir: &str,
-    ) -> Result<()> {
+    /// All options are commented out by default, falling back to global config.
+    /// This allows users to selectively override only what they need.
+    pub fn save_with_comments(project_root: &Path) -> Result<()> {
         let path = Self::path(project_root);
 
-        let content = format!(
-            r#"# qstack Project Configuration
+        let content = r#"# qstack Project Configuration
 # This file configures qstack for this specific project.
 # All settings here override the global config (~/.qstack).
 # Location: <project-root>/.qstack
@@ -148,15 +142,17 @@ impl ProjectConfig {
 # id_pattern = "%y%m%d-%T%RRR"
 
 # Directory name for storing items (relative to project root).
-stack_dir = "{stack_dir}"
+# If not set, falls back to global config (default: "qstack").
+# stack_dir = "qstack"
 
 # Subdirectory name for archived (closed) items within the qstack directory.
-archive_dir = "{archive_dir}"
+# If not set, falls back to global config (default: ".archive").
+# archive_dir = ".archive"
 
 # Subdirectory name for templates within the qstack directory.
-template_dir = "{template_dir}"
-"#
-        );
+# If not set, falls back to global config (default: ".templates").
+# template_dir = ".templates"
+"#;
 
         fs::write(&path, content)
             .with_context(|| format!("Failed to write project config: {}", path.display()))

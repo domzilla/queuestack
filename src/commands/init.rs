@@ -30,9 +30,8 @@ pub fn execute() -> Result<()> {
     let archive_dir = config.archive_dir();
     let template_dir = config.template_dir();
 
-    // Create project config with comments
-    // stack_dir, archive_dir, and template_dir are set explicitly, other options are commented out
-    ProjectConfig::save_with_comments(config.project_root(), stack_dir, archive_dir, template_dir)?;
+    // Create project config with comments (all options commented out, using global defaults)
+    ProjectConfig::save_with_comments(config.project_root())?;
 
     // Create qstack directory
     let stack_path = config.project_root().join(stack_dir);
