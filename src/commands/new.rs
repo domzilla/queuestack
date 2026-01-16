@@ -15,7 +15,7 @@ use owo_colors::OwoColorize;
 use crate::{
     config::Config,
     editor, id,
-    item::{normalize_identifier, Frontmatter, Item, Status},
+    item::{is_url, normalize_identifier, Frontmatter, Item, Status},
     storage,
     tui::{self, screens::NewItemWizard},
     ui::{self, InteractiveArgs},
@@ -313,7 +313,10 @@ fn execute_from_template(
     // Save to disk
     let path = storage::create_item(config, &item, category.as_deref())?;
 
-    // Process CLI attachments if any
+    // Copy template attachments (files are copied from template dir, URLs are added directly)
+    copy_template_attachments(&template, &mut item, &path)?;
+
+    // Process CLI attachments (if any)
     if !args.attachments.is_empty() {
         ui::process_and_save_attachments(&mut item, &path, &args.attachments)?;
     }
@@ -342,9 +345,15 @@ fn execute_wizard_from_template(
     // Collect existing metadata for autocomplete
     let (existing_categories, existing_labels) = collect_existing_metadata(config);
 
+    // Resolve template attachments to full paths for pre-population
+    // URLs are kept as-is, file attachments are converted to full paths
+    let template_attachments: Vec<String> = resolve_template_attachments(template);
+
     // Create pre-populated wizard
     let wizard = NewItemWizard::new(existing_categories, existing_labels)
+        .with_title(template.title())
         .with_content(&template.body)
+        .with_attachments(template_attachments)
         .with_category(category.map(String::from))
         .with_labels(labels);
 
@@ -392,6 +401,88 @@ fn execute_wizard_from_template(
     Ok(())
 }
 
+/// Resolves template attachments to full paths.
+///
+/// URLs are kept as-is. File attachments are converted to full paths
+/// by combining the template's directory with the attachment filename.
+fn resolve_template_attachments(template: &Item) -> Vec<String> {
+    let template_dir = template
+        .path
+        .as_ref()
+        .and_then(|p| p.parent())
+        .map(std::path::Path::to_path_buf);
+
+    template
+        .attachments()
+        .iter()
+        .map(|attachment| {
+            if is_url(attachment) {
+                // URLs are kept as-is
+                attachment.clone()
+            } else if let Some(ref dir) = template_dir {
+                // File attachments: convert to full path
+                dir.join(attachment).display().to_string()
+            } else {
+                // No template path, keep as-is (will fail gracefully)
+                attachment.clone()
+            }
+        })
+        .collect()
+}
+
+/// Copies template attachments to a new item.
+///
+/// - URL attachments are added directly to the item's frontmatter
+/// - File attachments are copied from the template's directory to the item's directory
+fn copy_template_attachments(
+    template: &Item,
+    item: &mut Item,
+    item_path: &std::path::Path,
+) -> Result<()> {
+    let template_dir = template.path.as_ref().and_then(|p| p.parent());
+
+    let Some(template_dir) = template_dir else {
+        return Ok(()); // No template path, skip attachment copying
+    };
+
+    let item_dir = item_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?;
+
+    let item_id = item.id().to_string();
+
+    for attachment in template.attachments() {
+        if is_url(attachment) {
+            // URL: add directly to item
+            item.add_attachment(attachment.clone());
+            println!("  {} {}", "+".green(), attachment);
+        } else {
+            // File: copy from template directory
+            let source_path = template_dir.join(attachment);
+            if source_path.exists() {
+                let counter = item.next_attachment_counter();
+                let new_filename =
+                    storage::copy_attachment(&source_path, item_dir, &item_id, counter)?;
+                item.add_attachment(new_filename.clone());
+                println!("  {} {} -> {}", "+".green(), attachment, new_filename);
+            } else {
+                eprintln!(
+                    "  {} Template attachment not found: {}",
+                    "!".yellow(),
+                    attachment
+                );
+            }
+        }
+    }
+
+    // Save updated item with attachments
+    if !template.attachments().is_empty() {
+        item.save(item_path)?;
+    }
+
+    Ok(())
+}
+
 /// Show template selection TUI and return selected template.
 fn select_template(config: &Config) -> Result<Option<Item>> {
     let templates: Vec<Item> = storage::walk_templates(config)
@@ -404,18 +495,35 @@ fn select_template(config: &Config) -> Result<Option<Item>> {
         );
     }
 
+    // Format templates in tabular layout matching the item list
+    let header = format!(
+        "{:<15}  {:<40}  {:<20}  {}",
+        "ID", "Title", "Labels", "Category"
+    );
+
     let options: Vec<String> = templates
         .iter()
         .map(|t| {
-            if t.labels().is_empty() {
-                t.title().to_string()
-            } else {
-                format!("{} [{}]", t.title(), t.labels().join(", "))
-            }
+            let labels_str = ui::truncate(&t.labels().join(", "), 20);
+            let title_truncated = ui::truncate(t.title(), 40);
+            let category = t
+                .path
+                .as_ref()
+                .and_then(|p| storage::derive_category(config, p))
+                .unwrap_or_default();
+
+            format!(
+                "{:<15}  {}  {}  {}",
+                t.id(),
+                ui::pad_to_width(&title_truncated, 40),
+                ui::pad_to_width(&labels_str, 20),
+                category
+            )
         })
         .collect();
 
-    let Some(selection) = ui::select_from_list("Select a template", &options)? else {
+    let Some(selection) = ui::select_from_list_with_header("Select a template", &header, &options)?
+    else {
         return Ok(None);
     };
 

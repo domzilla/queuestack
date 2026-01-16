@@ -25,7 +25,8 @@ use crate::{
     storage::{self, AttachmentResult},
     tui::screens::{
         confirm as tui_confirm, select_from_list as tui_select,
-        select_from_list_filtered as tui_select_filtered, select_from_list_with_header,
+        select_from_list_filtered as tui_select_filtered,
+        select_from_list_with_header as tui_select_with_header,
         select_item_with_actions as tui_select_item_with_actions, ItemAction,
     },
 };
@@ -143,6 +144,18 @@ pub fn select_from_list_filtered<T: ToString>(
     selectable_indices: &[usize],
 ) -> Result<Option<usize>> {
     tui_select_filtered(prompt, options, selectable_indices)
+}
+
+/// Interactive selection with a header row.
+///
+/// The header is displayed above the list items to label columns.
+/// Returns `Some(index)` if an item was selected, `None` if cancelled.
+pub fn select_from_list_with_header<T: ToString>(
+    prompt: &str,
+    header: &str,
+    options: &[T],
+) -> Result<Option<usize>> {
+    tui_select_with_header(prompt, header, options)
 }
 
 /// Interactive selection for items - returns index.

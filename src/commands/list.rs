@@ -640,20 +640,35 @@ fn execute_templates(filter: &ListOptions, config: &Config) -> Result<()> {
         return Ok(());
     }
 
-    // Interactive: show selection with labels
+    // Interactive: show selection with tabular layout matching item list
+    let header = format!(
+        "{:<15}  {:<40}  {:<20}  {}",
+        "ID", "Title", "Labels", "Category"
+    );
+
     let options: Vec<String> = templates
         .iter()
         .map(|t| {
-            let labels = t.labels();
-            if labels.is_empty() {
-                t.title().to_string()
-            } else {
-                format!("{} [{}]", t.title(), labels.join(", "))
-            }
+            let labels_str = ui::truncate(&t.labels().join(", "), 20);
+            let title_truncated = ui::truncate(t.title(), 40);
+            let category = t
+                .path
+                .as_ref()
+                .and_then(|p| storage::derive_category(config, p))
+                .unwrap_or_default();
+
+            format!(
+                "{:<15}  {}  {}  {}",
+                t.id(),
+                ui::pad_to_width(&title_truncated, 40),
+                ui::pad_to_width(&labels_str, 20),
+                category
+            )
         })
         .collect();
 
-    let Some(selection) = ui::select_from_list("Select a template", &options)? else {
+    let Some(selection) = ui::select_from_list_with_header("Select a template", &header, &options)?
+    else {
         return Ok(()); // User cancelled
     };
 

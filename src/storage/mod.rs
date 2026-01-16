@@ -173,9 +173,40 @@ pub fn find_by_id(config: &Config, partial_id: &str) -> Result<PathBuf> {
     }
 }
 
-/// Finds a template by reference (ID or title substring match).
+/// Extracts the slug portion from a filename.
 ///
-/// First tries to match by ID (partial match), then by title (case-insensitive substring).
+/// For a filename like `260116-188QYZ0-bug-report.md`, returns `"bug-report"`.
+/// Returns `None` if the filename doesn't have a slug portion.
+fn extract_slug_from_filename(filename: &str) -> Option<&str> {
+    // Remove extension
+    let stem = filename.strip_suffix(".md").unwrap_or(filename);
+
+    // The ID is always at the start, followed by slug (if any)
+    // Format: {date}-{time}{random}-{slug} or {date}-{time}{random} (no slug)
+    // Find the second hyphen (after date portion) then find the next hyphen (after ID)
+    let mut hyphen_count = 0;
+    let mut last_hyphen_pos = None;
+
+    for (i, c) in stem.char_indices() {
+        if c == '-' {
+            hyphen_count += 1;
+            if hyphen_count == 2 {
+                last_hyphen_pos = Some(i);
+            } else if hyphen_count > 2 {
+                // Found third hyphen - everything after second hyphen is slug
+                return Some(&stem[last_hyphen_pos.unwrap() + 1..]);
+            }
+        }
+    }
+
+    // If we only found 2 hyphens, there's no slug (ID-only filename)
+    None
+}
+
+/// Finds a template by reference (ID, title, or slug match).
+///
+/// Tries to match in order: ID (partial), title (case-insensitive substring),
+/// slug (case-insensitive substring from filename).
 /// Returns the full path to the template file.
 pub fn find_template(config: &Config, reference: &str) -> Result<PathBuf> {
     let ref_upper = reference.to_uppercase();
@@ -212,25 +243,57 @@ pub fn find_template(config: &Config, reference: &str) -> Result<PathBuf> {
 
     // No ID match - try title match
     let title_matches: Vec<_> = templates
-        .into_iter()
+        .iter()
         .filter(|path| {
             Item::load(path)
                 .ok()
                 .is_some_and(|item| item.title().to_uppercase().contains(&ref_upper))
         })
+        .cloned()
         .collect();
 
-    match title_matches.len() {
+    if title_matches.len() == 1 {
+        return Ok(title_matches.into_iter().next().unwrap());
+    }
+
+    if title_matches.len() > 1 {
+        let titles: Vec<_> = title_matches
+            .iter()
+            .filter_map(|p| Item::load(p).ok().map(|item| item.title().to_string()))
+            .collect();
+        bail!(
+            "Multiple templates match title '{reference}':\n  {}",
+            titles.join("\n  ")
+        );
+    }
+
+    // No title match - try slug match
+    let slug_matches: Vec<_> = templates
+        .into_iter()
+        .filter(|path| {
+            path.file_name()
+                .and_then(|n| n.to_str())
+                .and_then(extract_slug_from_filename)
+                .is_some_and(|slug| slug.to_uppercase().contains(&ref_upper))
+        })
+        .collect();
+
+    match slug_matches.len() {
         0 => bail!("No template found matching '{reference}'"),
-        1 => Ok(title_matches.into_iter().next().unwrap()),
+        1 => Ok(slug_matches.into_iter().next().unwrap()),
         _ => {
-            let titles: Vec<_> = title_matches
+            let slugs: Vec<_> = slug_matches
                 .iter()
-                .filter_map(|p| Item::load(p).ok().map(|item| item.title().to_string()))
+                .filter_map(|p| {
+                    p.file_name()
+                        .and_then(|n| n.to_str())
+                        .and_then(extract_slug_from_filename)
+                        .map(String::from)
+                })
                 .collect();
             bail!(
-                "Multiple templates match title '{reference}':\n  {}",
-                titles.join("\n  ")
+                "Multiple templates match slug '{reference}':\n  {}",
+                slugs.join("\n  ")
             );
         }
     }
