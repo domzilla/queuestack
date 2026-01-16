@@ -227,6 +227,7 @@ impl Config {
 | `id_pattern` | `String` | `%y%m%d-%T%RRR` | ID format |
 | `stack_dir` | `String` | `qstack` | Item directory |
 | `archive_dir` | `String` | `.archive` | Archive subdirectory |
+| `template_dir` | `String` | `.templates` | Template subdirectory |
 
 ### Storage Module (`src/storage/`)
 
@@ -238,6 +239,7 @@ File system operations for items.
 // Walking items
 pub fn walk_items(config: &Config) -> impl Iterator<Item = PathBuf>
 pub fn walk_archived(config: &Config) -> impl Iterator<Item = PathBuf>
+pub fn walk_templates(config: &Config) -> impl Iterator<Item = PathBuf>
 pub fn walk_all(config: &Config) -> impl Iterator<Item = PathBuf>
 
 // Category derivation
@@ -251,11 +253,23 @@ pub fn unarchive_item(config: &Config, path: &Path) -> Result<(PathBuf, Vec<Stri
 pub fn rename_item(path: &Path, new_filename: &str) -> Result<PathBuf>
 pub fn move_to_category(config: &Config, path: &Path, category: Option<&str>) -> Result<...>
 
+// Template operations
+pub fn create_template(config: &Config, item: &Item, category: Option<&str>) -> Result<PathBuf>
+pub fn find_template(config: &Config, reference: &str) -> Result<PathBuf>
+
 // Internal helper (shared by archive/unarchive/move_to_category)
 fn move_item_to_dir(config: &Config, path: &Path, dest_dir: &Path) -> Result<(PathBuf, Vec<String>)>
 ```
 
 Uses `walkdir` crate for recursive directory traversal with depth limits.
+
+#### Template Lookup
+
+`find_template()` searches for templates using this priority order:
+
+1. **ID match** — Partial, case-insensitive (e.g., `260109` matches `260109-0A2B3C4`)
+2. **Title match** — Case-insensitive substring (e.g., `bug report` matches `Bug Report Template`)
+3. **Slug match** — Extracted from filename, case-insensitive (e.g., `bug-report` matches `260109-0A2B3C4-bug-report.md`)
 
 #### `ItemRef` — Flexible Item Identification
 
@@ -348,10 +362,12 @@ tui/
 │   ├── confirm.rs      # Yes/no confirmation dialog
 │   └── wizard.rs       # Multi-step new item wizard
 └── widgets/
-    ├── text_input.rs   # Single-line text input
-    ├── text_area.rs    # Multi-line text editor
-    ├── select_list.rs  # Single-select list
-    └── multi_select.rs # Multi-select list
+    ├── text_input.rs    # Single-line text input
+    ├── text_area.rs     # Multi-line text editor
+    ├── select_list.rs   # Single-select list
+    ├── multi_select.rs  # Multi-select list
+    ├── action_menu.rs   # Action menu overlay
+    └── filter_overlay.rs # Filter input overlay
 ```
 
 #### Item Actions Screen (`item_actions.rs`)
@@ -434,8 +450,8 @@ pub fn execute(filter: ListOptions, interactive: InteractiveArgs) -> Result<()> 
 | Command | File | Key Functions |
 |---------|------|---------------|
 | `init` | `init.rs` | Creates `.qstack` and qstack directory |
-| `new` | `new.rs` | Creates item, optionally launches wizard |
-| `list` | `list.rs` | Lists items, labels (`--labels`), categories (`--categories`), attachments (`--attachments`), metadata (`--meta`) |
+| `new` | `new.rs` | Creates item/template, `--as-template`, `--from-template`, wizard |
+| `list` | `list.rs` | Lists items/templates (`--templates`), labels, categories, attachments, meta |
 | `search` | `search.rs` | Query matching with full-text option |
 | `update` | `update.rs` | Updates metadata, renames file |
 | `close` | `close.rs` | Archives item (and `reopen`) |
@@ -543,6 +559,30 @@ User: qstack reopen --id 260109
 6. Print success message
 ```
 
+### Creating from Template
+
+```
+User: qstack new "Login Bug" --from-template "Bug Report"
+
+1. main.rs parses CLI args via clap
+2. commands::new::execute_from_template() called
+3. storage::find_template() locates template by:
+   a. ID match (partial, case-insensitive)
+   b. Title match (case-insensitive substring)
+   c. Slug match (from filename)
+4. Item::load() parses template
+5. Inherit metadata:
+   a. Labels merged (template + CLI, no duplicates)
+   b. Category inherited if not specified on CLI
+6. id::generate() creates unique ID for new item
+7. storage::create_item() writes new item
+8. copy_template_attachments():
+   a. File attachments: copied to new item's directory
+   b. URL attachments: added directly to frontmatter
+9. editor::open() launches editor (if interactive)
+10. Print success message with path
+```
+
 ## File System Layout
 
 ```
@@ -553,13 +593,19 @@ project/
     │   ├── bugs/           # Archived items from bugs category
     │   │   └── 260108-...-old-bug.md
     │   └── 260108-...-old-task.md  # Archived uncategorized item
+    ├── .templates/         # Templates (preserves category structure)
+    │   ├── bugs/           # Templates in bugs category
+    │   │   └── 260107-...-bug-report.md
+    │   └── 260107-...-feature-request.md
     ├── bugs/               # Category subdirectory
     │   ├── 260109-...-fix-login.md
     │   └── 260109-...-Attachment-1-screenshot.png
     └── 260110-...-add-feature.md
 ```
 
-**Category**: Derived from folder path, NOT stored in item metadata. Moving an item to a different folder changes its category. Archive preserves the original category folder structure.
+**Category**: Derived from folder path, NOT stored in item metadata. Moving an item to a different folder changes its category. Archive and templates preserve category folder structure.
+
+**Templates**: Items with `status: template` stored in `.templates/` directory. Used as patterns for creating new items.
 
 ## Testing Strategy
 

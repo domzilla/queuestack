@@ -65,7 +65,9 @@ qstack/
 │   │       ├── select_list.rs
 │   │       ├── multi_select.rs
 │   │       ├── text_input.rs
-│   │       └── text_area.rs
+│   │       ├── text_area.rs
+│   │       ├── action_menu.rs
+│   │       └── filter_overlay.rs
 │   └── commands/
 │       ├── mod.rs          # Command dispatch & shared types
 │       ├── init.rs         # qstack init
@@ -90,6 +92,7 @@ qstack/
 │   ├── labels.rs
 │   ├── categories.rs
 │   ├── attach.rs
+│   ├── template.rs         # Template feature tests
 │   ├── config.rs
 │   ├── edge_cases.rs
 │   └── output_format.rs    # Non-interactive output format tests
@@ -158,7 +161,41 @@ qstack attachments add --id 260109 https://... # Add URL attachment
 qstack attachments remove --id 260109 1        # Remove by index
 qstack setup                                   # One-time setup
 qstack completions zsh                         # Generate completions
+
+# Templates
+qstack new "Bug Report" --as-template          # Create a template
+qstack new "Bug Report" --as-template --category bugs  # Template in category
+qstack list --templates                        # List all templates (interactive)
+qstack list --templates --no-interactive       # List template file paths
+qstack new "My Bug" --from-template "Bug Report"  # Create from template by title
+qstack new "My Bug" --from-template bug-report # Create from template by slug
+qstack new "My Bug" --from-template 260109     # Create from template by ID
+qstack new --from-template                     # Template selection TUI
 ```
+
+### Template System
+
+Templates are reusable item patterns with `status: template`. They live in the `.templates/` directory (configurable via `template_dir`).
+
+**Creating templates:**
+- `--as-template` flag creates a template instead of a regular item
+- Templates can have labels, categories, attachments, and body content
+
+**Using templates:**
+- `--from-template [REF]` creates an item from a template
+- Reference can be: ID (partial match), title (case-insensitive), or slug (from filename)
+- Omitting the reference shows an interactive template selector
+
+**Inheritance from templates:**
+- Labels: Merged (template labels + CLI labels, no duplicates)
+- Category: Inherited if not specified on CLI
+- Attachments: File attachments are copied, URLs are added directly
+- Body content: Copied from template
+
+**Template lookup order:**
+1. ID match (partial, case-insensitive)
+2. Title match (case-insensitive, contains)
+3. Slug match (from filename, case-insensitive)
 
 ### --file Option (Scriptability)
 Commands that accept `--id` also accept `--file` as an alternative. This enables:
@@ -200,6 +237,10 @@ project-root/
     │   ├── bugs/       # Archived items from bugs category
     │   │   └── 260109-02F7K9M-fix-login-styling.md
     │   └── 260109-02F8L1P-old-task.md  # Archived uncategorized item
+    ├── .templates/     # Templates (hidden, preserves category structure)
+    │   ├── bugs/       # Templates in bugs category
+    │   │   └── 260109-02F7K9M-bug-report.md
+    │   └── 260109-02F8L1P-feature-request.md  # Uncategorized template
     ├── bugs/           # Category subdirectory
     │   ├── 260109-02F7K9M-fix-login-styling.md
     │   └── 260109-02F7K9M-Attachment-1-screenshot.png
@@ -207,6 +248,8 @@ project-root/
 ```
 
 **Category**: Derived from folder path, NOT stored in item metadata. Moving an item to a different folder changes its category.
+
+**Templates**: Stored in `.templates/` directory with `status: template`. Category structure mirrors the main item storage.
 
 ## Item File Format
 ```yaml
@@ -227,6 +270,8 @@ attachments:
 Description and notes go here in Markdown.
 ```
 
+**Status values:** `open`, `closed`, `template`
+
 Note: Category is NOT stored in frontmatter - it's derived from the item's folder location.
 
 **Label/Category Normalization**: Non-alphanumeric characters (except `-` and `_`) in labels and categories are silently replaced with hyphens (`my label` → `my-label`, `level1/level2` → `level1-level2`).
@@ -243,7 +288,7 @@ Default pattern `%y%m%d-%T%RRR` produces IDs like `260109-0A2B3C4`:
 - Colored error output via `owo-colors`
 
 ## Config System
-Both global (`~/.qstack`) and project (`.qstack`) configs support the same 7 options.
+Both global (`~/.qstack`) and project (`.qstack`) configs support the same 8 options.
 Project values override global values when set.
 
 | Option | Type | Default |
@@ -255,6 +300,7 @@ Project values override global values when set.
 | `id_pattern` | `String` | `"%y%m%d-%T%RRR"` |
 | `stack_dir` | `String` | `"qstack"` |
 | `archive_dir` | `String` | `".archive"` |
+| `template_dir` | `String` | `".templates"` |
 
 When adding a new config option:
 1. Add the field to both `GlobalConfig` and `ProjectConfig`

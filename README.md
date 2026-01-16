@@ -9,6 +9,7 @@ Items are stored as plain Markdown files—human-readable, grep-friendly, and ea
 - **Plain text storage** — Items are Markdown files you can read, edit, and search with standard tools
 - **Scriptable** — Every command works non-interactively for automation and CI/CD pipelines
 - **Interactive TUI** — Arrow-key navigation, filter overlay, action menu, and a wizard for creating items
+- **Templates** — Create reusable item patterns and instantiate new items from them
 - **Attachments** — Attach files or URLs to any item
 - **Categories & Labels** — Organize items in subdirectories and tag them
 - **Git-aware** — Uses `git mv` when renaming to preserve history
@@ -72,6 +73,11 @@ qstack attachments list --id 260109
 # Archive and restore
 qstack close --id 260109
 qstack reopen --id 260109
+
+# Templates
+qstack new "Bug Report" --as-template          # Create a template
+qstack list --templates                        # List all templates
+qstack new "Login Bug" --from-template "Bug Report"  # Create from template
 ```
 
 ## Commands
@@ -80,7 +86,10 @@ qstack reopen --id 260109
 |---------|-------------|
 | `init` | Initialize a new qstack project |
 | `new [title]` | Create a new item (omit title for wizard) |
+| `new --as-template` | Create a reusable template |
+| `new --from-template <ref>` | Create item from template (by ID, title, or slug) |
 | `list` | List items with filters and sorting |
+| `list --templates` | List all templates |
 | `list --labels` | List all labels in use |
 | `list --categories` | List all categories in use |
 | `search <query>` | Search by title, ID, or content |
@@ -133,8 +142,10 @@ qstack/
 ├── 260109-0A2B3C4-fix-login-bug.md
 ├── bugs/
 │   └── 260110-0B3C4D5-memory-leak.md
-└── .archive/
-    └── 260108-0Z1Y2X3-old-task.md
+├── .archive/
+│   └── 260108-0Z1Y2X3-old-task.md
+└── .templates/
+    └── 260107-0A1B2C3-bug-report.md
 ```
 
 Each item:
@@ -162,7 +173,7 @@ Description and notes in Markdown.
 3. See console error
 ```
 
-**Note:** Category is derived from the folder path, not stored in frontmatter. An item in `qstack/bugs/` has category `bugs`.
+**Note:** Category is derived from the folder path, not stored in frontmatter. An item in `qstack/bugs/` has category `bugs`. Status can be `open`, `closed`, or `template`.
 
 ## Configuration
 
@@ -186,6 +197,7 @@ Project settings override global settings.
 | `id_pattern` | `%y%m%d-%T%RRR` | ID format pattern |
 | `stack_dir` | `qstack` | Directory for items |
 | `archive_dir` | `.archive` | Subdirectory for closed items |
+| `template_dir` | `.templates` | Subdirectory for templates |
 
 ### ID Pattern Tokens
 
