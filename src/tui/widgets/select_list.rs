@@ -187,7 +187,10 @@ impl SelectList {
                 let is_selected = Some(i) == self.state.selected();
                 let is_disabled = self.disabled.contains(&i);
 
-                let style = if is_disabled {
+                let style = if !focused {
+                    // Unfocused: all content muted
+                    Style::default().fg(Color::DarkGray)
+                } else if is_disabled {
                     // Disabled items shown dimmed
                     Style::default().fg(Color::DarkGray)
                 } else if is_selected {
@@ -198,7 +201,7 @@ impl SelectList {
                     Style::default()
                 };
 
-                let prefix = if is_selected && !is_disabled {
+                let prefix = if is_selected && !is_disabled && focused {
                     "> "
                 } else {
                     "  "
@@ -210,11 +213,19 @@ impl SelectList {
             })
             .collect();
 
-        let list = List::new(items).block(block).highlight_style(
+        let highlight_style = if focused {
             Style::default()
                 .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        };
+
+        let list = List::new(items)
+            .block(block)
+            .highlight_style(highlight_style);
 
         StatefulWidget::render(list, area, buf, &mut self.state);
     }

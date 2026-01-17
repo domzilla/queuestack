@@ -215,7 +215,10 @@ impl MultiSelect {
             .map(|(i, (item, selected))| {
                 let is_cursor = Some(i) == self.state.selected();
                 let is_action = action_idx == Some(i);
-                let style = if is_cursor {
+                let style = if !focused {
+                    // Unfocused: all content muted
+                    Style::default().fg(Color::DarkGray)
+                } else if is_cursor {
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD)
@@ -231,7 +234,7 @@ impl MultiSelect {
                 } else {
                     "[ ] "
                 };
-                let cursor = if is_cursor { "> " } else { "  " };
+                let cursor = if is_cursor && focused { "> " } else { "  " };
 
                 ListItem::new(Line::from(vec![
                     Span::styled(cursor, style),
@@ -241,11 +244,19 @@ impl MultiSelect {
             })
             .collect();
 
-        let list = List::new(items).block(block).highlight_style(
+        let highlight_style = if focused {
             Style::default()
                 .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        );
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD)
+        };
+
+        let list = List::new(items)
+            .block(block)
+            .highlight_style(highlight_style);
 
         StatefulWidget::render(list, area, buf, &mut self.state);
     }
