@@ -61,10 +61,9 @@ pub fn serialize(frontmatter: &Frontmatter, body: &str) -> Result<String> {
     result.push('\n');
     result.push_str(&yaml);
     result.push_str(FRONTMATTER_DELIMITER);
-    result.push('\n');
+    result.push_str("\n\n\n"); // Two empty lines after frontmatter
 
     if !body.is_empty() {
-        result.push('\n');
         result.push_str(body);
         if !body.ends_with('\n') {
             result.push('\n');
