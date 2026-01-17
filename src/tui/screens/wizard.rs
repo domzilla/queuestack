@@ -553,15 +553,10 @@ impl NewItemWizard {
     fn render_meta_panel(&self, frame: &mut Frame, area: Rect) {
         // Meta panel layout:
         // - Title input (full width, 3 rows)
-        // - Validation message if needed (1 row)
         // - Category (left 50%) | Labels (right 50%)
-        let has_validation_msg = self.title_input.content().trim().is_empty();
-        let validation_height = u16::from(has_validation_msg);
-
         let chunks = Layout::vertical([
-            Constraint::Length(3),                 // Title input
-            Constraint::Length(validation_height), // Validation message
-            Constraint::Min(4),                    // Category/Labels split
+            Constraint::Length(3), // Title input
+            Constraint::Min(4),    // Category/Labels split
         ])
         .split(area);
 
@@ -569,16 +564,10 @@ impl NewItemWizard {
         let title_focused = self.focused == FocusedWidget::Title;
         self.render_title_widget(frame, chunks[0], title_focused);
 
-        // Validation message
-        if has_validation_msg {
-            let msg = Paragraph::new("Title is required").style(Style::default().fg(Color::Yellow));
-            frame.render_widget(msg, chunks[1]);
-        }
-
         // Category/Labels horizontal split (50/50)
         let split_chunks =
             Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(chunks[2]);
+                .split(chunks[1]);
 
         // Category (left)
         let category_focused = self.focused == FocusedWidget::Category;
@@ -590,80 +579,58 @@ impl NewItemWizard {
     }
 
     fn render_title_widget(&self, frame: &mut Frame, area: Rect, focused: bool) {
-        self.title_input.render(area, frame.buffer_mut(), focused);
+        // Add warning if title is empty
+        let input = if self.title_input.content().trim().is_empty() {
+            self.title_input.clone().with_warning("required")
+        } else {
+            self.title_input.clone()
+        };
+        input.render(area, frame.buffer_mut(), focused);
     }
 
     fn render_category_widget(&self, frame: &mut Frame, area: Rect, focused: bool) {
+        // Build title with current selection
+        let current = self.category.as_deref().unwrap_or("(none)");
+        let title = format!("Category: {current}");
+
         if self.category_input_mode {
             // Show input overlay for creating new category
             let chunks = Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).split(area);
 
-            let mut list = self.category_list.clone();
+            let mut list = self.category_list.clone().with_title(&title);
             list.render(chunks[0], frame.buffer_mut(), false);
 
             self.category_input
                 .render(chunks[1], frame.buffer_mut(), true);
         } else {
-            // Current selection display + list
-            let current = self.category.as_deref().unwrap_or("(none)");
-
-            let chunks = Layout::vertical([
-                Constraint::Length(1), // Current selection
-                Constraint::Min(3),    // List
-            ])
-            .split(area);
-
-            // Current selection with muted text if not focused
-            let text_style = if focused {
-                Style::default()
-            } else {
-                Style::default().fg(Color::DarkGray)
-            };
-            let current_display = Paragraph::new(format!(" Current: {current}")).style(text_style);
-            frame.render_widget(current_display, chunks[0]);
-
             // Category list (SelectList renders its own border)
-            let mut list = self.category_list.clone();
-            list.render(chunks[1], frame.buffer_mut(), focused);
+            let mut list = self.category_list.clone().with_title(&title);
+            list.render(area, frame.buffer_mut(), focused);
         }
     }
 
     fn render_labels_widget(&self, frame: &mut Frame, area: Rect, focused: bool) {
+        // Build title with selected labels
+        let selected: Vec<&str> = self.labels_list.selected_items();
+        let selection = if selected.is_empty() {
+            "(none)".to_string()
+        } else {
+            selected.join(", ")
+        };
+        let title = format!("Labels: {selection}");
+
         if self.label_input_mode {
             // Show input overlay for creating new label
             let chunks = Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).split(area);
 
-            let mut list = self.labels_list.clone();
+            let mut list = self.labels_list.clone().with_title(&title);
             list.render(chunks[0], frame.buffer_mut(), false);
 
             self.label_input.render(chunks[1], frame.buffer_mut(), true);
         } else {
-            // Selected labels display + list
-            let selected: Vec<&str> = self.labels_list.selected_items();
-            let current = if selected.is_empty() {
-                "(none)".to_string()
-            } else {
-                selected.join(", ")
-            };
-
-            let chunks = Layout::vertical([
-                Constraint::Length(1), // Selected labels
-                Constraint::Min(3),    // List
-            ])
-            .split(area);
-
-            // Selected labels with muted text if not focused
-            let text_style = if focused {
-                Style::default()
-            } else {
-                Style::default().fg(Color::DarkGray)
-            };
-            let current_display = Paragraph::new(format!(" Selected: {current}")).style(text_style);
-            frame.render_widget(current_display, chunks[0]);
-
             // Labels list (MultiSelect renders its own border)
-            let mut list = self.labels_list.clone();
-            list.render(chunks[1], frame.buffer_mut(), focused);
+            let mut list = self.labels_list.clone().with_title(&title);
+            list.render(area, frame.buffer_mut(), focused);
         }
     }
 

@@ -21,6 +21,8 @@ pub struct TextInput {
     /// Cursor position as character index (0 = before first char)
     cursor: usize,
     label: String,
+    /// Optional warning text shown after label in yellow.
+    warning: Option<String>,
 }
 
 impl TextInput {
@@ -30,6 +32,7 @@ impl TextInput {
             content: String::new(),
             cursor: 0,
             label: label.into(),
+            warning: None,
         }
     }
 
@@ -38,6 +41,20 @@ impl TextInput {
     pub fn with_initial(mut self, value: impl Into<String>) -> Self {
         self.content = value.into();
         self.cursor = self.content.chars().count();
+        self
+    }
+
+    /// Set the label (title) for this input.
+    #[must_use]
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = label.into();
+        self
+    }
+
+    /// Set a warning message shown after the label in yellow.
+    #[must_use]
+    pub fn with_warning(mut self, warning: impl Into<String>) -> Self {
+        self.warning = Some(warning.into());
         self
     }
 
@@ -173,10 +190,22 @@ impl TextInput {
             Style::default().fg(Color::DarkGray)
         };
 
+        // Build title with optional warning in yellow
+        let title = self.warning.as_ref().map_or_else(
+            || Line::from(format!(" {} ", self.label)),
+            |warning| {
+                Line::from(vec![
+                    Span::raw(format!(" {} (", self.label)),
+                    Span::styled(warning.as_str(), Style::default().fg(Color::Yellow)),
+                    Span::raw(") "),
+                ])
+            },
+        );
+
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(border_style)
-            .title(format!(" {} ", self.label));
+            .title(title);
 
         let inner = block.inner(area);
         block.render(area, buf);
