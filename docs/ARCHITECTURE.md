@@ -197,7 +197,7 @@ Two-tier configuration with project overriding global.
 
 For each setting, the system checks:
 1. Project config (`.queuestack`)
-2. Global config (`~/.queuestack`)
+2. Global config (`~/.config/queuestack/config`)
 3. Default value
 
 ```rust

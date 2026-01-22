@@ -1,6 +1,6 @@
 //! # Global Configuration
 //!
-//! Handles the global user configuration stored at `~/.queuestack`.
+//! Handles the global user configuration stored at `~/.config/queuestack/config`.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
@@ -17,7 +17,10 @@ use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    constants::{DEFAULT_ARCHIVE_DIR, DEFAULT_STACK_DIR, DEFAULT_TEMPLATE_DIR, GLOBAL_CONFIG_FILE},
+    constants::{
+        DEFAULT_ARCHIVE_DIR, DEFAULT_STACK_DIR, DEFAULT_TEMPLATE_DIR, GLOBAL_CONFIG_DIR,
+        GLOBAL_CONFIG_FILENAME,
+    },
     id::DEFAULT_PATTERN,
 };
 
@@ -88,7 +91,7 @@ fn get_home_override() -> Option<PathBuf> {
     HOME_OVERRIDE.with(|cell| cell.borrow().clone())
 }
 
-/// Global configuration stored at ~/.queuestack
+/// Global configuration stored at ~/.config/queuestack/config
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalConfig {
     /// User's display name
@@ -149,19 +152,36 @@ fn default_id_pattern() -> String {
 }
 
 impl GlobalConfig {
-    /// Returns the path to the global config file (~/.queuestack)
+    /// Returns the path to the global config file (~/.config/queuestack/config)
     ///
     /// Checks for a thread-local home override first (used by tests),
-    /// then falls back to the actual home directory.
+    /// then falls back to $HOME/.config (XDG Base Directory).
     pub fn path() -> Option<PathBuf> {
         // Check for thread-local test override first (no env var modification)
         if let Some(home) = get_home_override() {
-            return Some(home.join(GLOBAL_CONFIG_FILE));
+            return Some(
+                home.join(".config")
+                    .join(GLOBAL_CONFIG_DIR)
+                    .join(GLOBAL_CONFIG_FILENAME),
+            );
         }
-        dirs::home_dir().map(|home| home.join(GLOBAL_CONFIG_FILE))
+        // Use $HOME/.config for XDG compliance (not dirs::config_dir which varies by OS)
+        dirs::home_dir().map(|home| {
+            home.join(".config")
+                .join(GLOBAL_CONFIG_DIR)
+                .join(GLOBAL_CONFIG_FILENAME)
+        })
     }
 
-    /// Loads the global config from ~/.queuestack.
+    /// Returns the path to the global config directory (~/.config/queuestack)
+    pub fn dir() -> Option<PathBuf> {
+        if let Some(home) = get_home_override() {
+            return Some(home.join(".config").join(GLOBAL_CONFIG_DIR));
+        }
+        dirs::home_dir().map(|home| home.join(".config").join(GLOBAL_CONFIG_DIR))
+    }
+
+    /// Loads the global config from ~/.config/queuestack/config.
     /// Fails if the config doesn't exist — user must run `qs setup` first.
     pub fn load() -> Result<Self> {
         let Some(path) = Self::path() else {
@@ -183,11 +203,18 @@ impl GlobalConfig {
     /// Used by `qs setup`. Returns true if created, false if already exists.
     pub fn create_default_if_missing() -> Result<bool> {
         let Some(path) = Self::path() else {
-            anyhow::bail!("Could not determine home directory");
+            anyhow::bail!("Could not determine config directory");
         };
 
         if path.exists() {
             return Ok(false);
+        }
+
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create config directory: {}", parent.display())
+            })?;
         }
 
         let config = Self::default();
@@ -195,10 +222,10 @@ impl GlobalConfig {
         Ok(true)
     }
 
-    /// Saves the global config to ~/.queuestack
+    /// Saves the global config to ~/.config/queuestack/config
     pub fn save(&self) -> Result<()> {
         let Some(path) = Self::path() else {
-            anyhow::bail!("Could not determine home directory");
+            anyhow::bail!("Could not determine config directory");
         };
 
         // When saving after user input, just update the values without regenerating comments
@@ -238,7 +265,7 @@ impl GlobalConfig {
         let content = format!(
             r#"# queuestack Global Configuration
 # This file configures queuestack behavior across all projects.
-# Location: ~/.queuestack
+# Location: ~/.config/queuestack/config
 
 # Your display name used as the author when creating new items.
 # If not set, falls back to git user.name (if use_git_user is true).
@@ -433,7 +460,10 @@ interactive = {interactive}
         eprintln!(
             "{} Saved user name to {}",
             "✓".green(),
-            Self::path().map_or_else(|| "~/.queuestack".to_string(), |p| p.display().to_string())
+            Self::path().map_or_else(
+                || "~/.config/queuestack/config".to_string(),
+                |p| p.display().to_string()
+            )
         );
 
         Ok(Some(name))
@@ -480,16 +510,21 @@ default_id_pattern = "%y%j-%RRR"
         use tempfile::tempdir;
 
         let temp = tempdir().unwrap();
+        let expected_path = temp
+            .path()
+            .join(".config")
+            .join("queuestack")
+            .join("config");
 
         // Set thread-local override
         set_home_override(Some(temp.path().to_path_buf()));
         let path = GlobalConfig::path().unwrap();
-        assert_eq!(path, temp.path().join(".queuestack"));
+        assert_eq!(path, expected_path);
 
-        // Clear override - should fall back to real home dir
+        // Clear override - should fall back to real config dir
         set_home_override(None);
         let path = GlobalConfig::path();
         assert!(path.is_some());
-        assert_ne!(path.unwrap(), temp.path().join(".queuestack"));
+        assert_ne!(path.unwrap(), expected_path);
     }
 }

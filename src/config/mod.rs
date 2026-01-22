@@ -1,7 +1,7 @@
 //! # Configuration
 //!
-//! Merged configuration system combining global (~/.queuestack) and project (.queuestack) settings.
-//! Project settings override global settings when specified.
+//! Merged configuration system combining global (~/.config/queuestack/config) and project
+//! (.queuestack) settings. Project settings override global settings when specified.
 //!
 //! Copyright (c) 2025 Dominic Rodemer. All rights reserved.
 //! Licensed under the MIT License.
@@ -146,7 +146,7 @@ impl Config {
         }
 
         anyhow::bail!(
-            "No user name available. Set user_name in ~/.queuestack or configure git user.name"
+            "No user name available. Set user_name in ~/.config/queuestack/config or configure git user.name"
         )
     }
 

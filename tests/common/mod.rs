@@ -25,7 +25,7 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 /// Test environment that manages temporary directories for both
 /// the "home" directory (for global config) and the project directory.
 pub struct TestEnv {
-    /// Temporary directory simulating user's home (for ~/.queuestack)
+    /// Temporary directory simulating user's home (for ~/.config/queuestack/config)
     pub home_dir: TempDir,
     /// Temporary directory for the project
     pub project_dir: TempDir,
@@ -70,7 +70,11 @@ impl TestEnv {
 
     /// Returns the path where global config would be stored.
     pub fn global_config_path(&self) -> PathBuf {
-        self.home_dir.path().join(".queuestack")
+        self.home_dir
+            .path()
+            .join(".config")
+            .join("queuestack")
+            .join("config")
     }
 
     /// Returns the path where project config would be stored.
@@ -95,7 +99,11 @@ impl TestEnv {
 
     /// Creates a global config file with the given content.
     pub fn write_global_config(&self, content: &str) {
-        fs::write(self.global_config_path(), content).expect("Failed to write global config");
+        let path = self.global_config_path();
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("Failed to create global config directory");
+        }
+        fs::write(path, content).expect("Failed to write global config");
     }
 
     /// Creates a project config file with the given content.

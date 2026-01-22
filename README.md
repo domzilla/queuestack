@@ -195,7 +195,7 @@ Two config files (TOML format):
 
 | File | Scope |
 |------|-------|
-| `~/.queuestack` | Global defaults (user name, editor, ID pattern) |
+| `~/.config/queuestack/config` | Global defaults (user name, editor, ID pattern) |
 | `.queuestack` | Project overrides (queuestack directory, archive directory) |
 
 Project settings override global settings.

@@ -51,8 +51,8 @@ macro_rules! global_help {
         concat!(
             h!("Configuration Files:"),
             "\n  ",
-            "~/.queuestack      Global configuration (user name, editor, ID pattern)\n  ",
-            ".queuestack        Project configuration (queuestack directory, archive directory)\n\n",
+            "~/.config/queuestack/config  Global configuration (user name, editor, ID pattern)\n  ",
+            ".queuestack                  Project configuration (queuestack directory, archive directory)\n\n",
             h!("ID Pattern Tokens:"),
             "\n  ",
             "%y  Year (2 digits)           %m  Month (01-12)\n  ",
@@ -128,9 +128,9 @@ your editor based on the 'interactive' config setting (default: true). Use -i to
 force the editor to open, or --no-interactive to skip it.\n\n\
 The filename is derived from the ID and a slugified title (e.g., '260109-0A2B3C4-fix-login-bug.md').\n\n\
 The author is determined from (in order):\n  \
-1. user_name in ~/.queuestack\n  \
+1. user_name in ~/.config/queuestack/config\n  \
 2. git config user.name (if use_git_user is true)\n  \
-3. Interactive prompt (saved to ~/.queuestack for future use)\n\n\
+3. Interactive prompt (saved to ~/.config/queuestack/config for future use)\n\n\
 Templates:\n  \
 --as-template     Create a template instead of an item\n  \
 --from-template   Create an item from an existing template",
@@ -543,7 +543,7 @@ To list attachments for an item, use: qs list --attachments --id <ID>",
     #[command(
         long_about = "One-time setup for queuestack.\n\n\
 This command helps you get started with queuestack by:\n  \
-1. Creating the global configuration file (~/.queuestack) if it doesn't exist\n  \
+1. Creating the global configuration file (~/.config/queuestack/config) if it doesn't exist\n  \
 2. Installing tab completions for your shell\n\n\
 Shell detection tries (in order):\n  \
 1. --shell flag if provided\n  \

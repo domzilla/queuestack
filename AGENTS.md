@@ -44,7 +44,7 @@ queuestack/
 │   │   └── slug.rs         # Title slugification
 │   ├── config/
 │   │   ├── mod.rs          # Merged config resolver
-│   │   ├── global.rs       # ~/.queuestack handling
+│   │   ├── global.rs       # ~/.config/queuestack/config handling
 │   │   └── project.rs      # .queuestack handling
 │   ├── storage/
 │   │   ├── mod.rs          # File operations, ID lookup
@@ -288,7 +288,7 @@ Default pattern `%y%m%d-%T%RRR` produces IDs like `260109-0A2B3C4`:
 - Colored error output via `owo-colors`
 
 ## Config System
-Both global (`~/.queuestack`) and project (`.queuestack`) configs support the same 8 options.
+Both global (`~/.config/queuestack/config`) and project (`.queuestack`) configs support the same 8 options.
 Project values override global values when set.
 
 | Option | Type | Default |

@@ -50,8 +50,11 @@ pub const DEFAULT_ARCHIVE_DIR: &str = ".archive";
 /// Default subdirectory name for templates (inside `stack_dir`).
 pub const DEFAULT_TEMPLATE_DIR: &str = ".templates";
 
-/// Global configuration file name.
-pub const GLOBAL_CONFIG_FILE: &str = ".queuestack";
+/// Global configuration directory name (inside user's config directory).
+pub const GLOBAL_CONFIG_DIR: &str = "queuestack";
+
+/// Global configuration file name (inside `GLOBAL_CONFIG_DIR`).
+pub const GLOBAL_CONFIG_FILENAME: &str = "config";
 
 // =============================================================================
 // Shell Completion Paths
