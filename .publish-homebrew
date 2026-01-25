@@ -1,19 +1,2 @@
-# Homebrew formula publishing configuration for queuestack
-
 formula: queuestack
 github_repo: https://github.com/domzilla/queuestack
-
-description: "Minimal, scriptable task and issue tracker for agent-driven workflows"
-license: MIT
-homepage: https://github.com/domzilla/queuestack
-
-build_system: cargo
-
-completions_command: "qs completions"
-
-test_commands:
-  - "{bin}/qs --version"
-  - "{bin}/qs init"
-
-release_branch: master
-tag_prefix: "v"
