@@ -2,7 +2,6 @@
 
 formula: queuestack
 github_repo: https://github.com/domzilla/queuestack
-tap_path: /Users/dom/GIT/Homebrew/homebrew-tap
 
 description: "Minimal, scriptable task and issue tracker for agent-driven workflows"
 license: MIT
