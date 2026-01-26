@@ -18,6 +18,5 @@ github_repo: https://github.com/domzilla/queuestack
 # Post-publish commands (optional)
 # Shell commands executed sequentially after publish.
 # Stops on first failure. No placeholder substitution.
-# post_publish_commands:
-#   - echo "Release complete"
-#   - ./scripts/notify-slack.sh
+post_publish_commands:
+  - git push origin --tags
