@@ -257,13 +257,19 @@ fn handle_item_action(action: ItemAction, config: &Config) -> Result<()> {
             let item = Item::load(&path)?;
             let message = format!("Delete '{}'?", item.title());
             if ui::confirm(&message)? == Some(true) {
-                // Move to trash
+                // Move item to trash
                 let status = Command::new("trash")
                     .arg(&path)
                     .status()
                     .context("Failed to execute trash command")?;
 
                 if status.success() {
+                    // Also trash attachment directory if it exists
+                    let attachment_dir = storage::attachment_dir_for_item(&path);
+                    if attachment_dir.exists() {
+                        let _ = Command::new("trash").arg(&attachment_dir).status();
+                    }
+
                     println!(
                         "{} Moved to trash: {}",
                         "✓".green(),
