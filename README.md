@@ -24,7 +24,18 @@ brew tap domzilla/tap
 brew install queuestack
 ```
 
+### Linux / WSL
+
+Download the latest release from [GitHub Releases](https://github.com/domzilla/queuestack/releases):
+
+```bash
+curl -sL https://github.com/domzilla/queuestack/releases/latest/download/qs-0.5.2-linux-x86_64.tar.gz | tar xz
+sudo mv qs-*/bin/qs /usr/local/bin/
+```
+
 ### From Source
+
+Requires Rust 1.75+:
 
 ```bash
 cargo install --path .
