@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-01
+
 ### Changed
 - Refactor attachment storage from flat files to sibling `.attachments/` directories
   - Old: `queuestack/260109-XXX-Attachment-1-screenshot.png` (alongside item)
@@ -102,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip git commands for untracked/ignored files
 - Exit silently when user cancels selection with ESC
 
-[Unreleased]: https://github.com/domrodem/queuestack/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/domrodem/queuestack/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/domrodem/queuestack/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/domrodem/queuestack/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/domrodem/queuestack/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/domrodem/queuestack/compare/v0.2.0...v0.3.0
