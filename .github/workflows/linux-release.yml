@@ -62,6 +62,8 @@ jobs:
           files: |
             qs-*-linux-x86_64.tar.gz
             qs-*-linux-x86_64.tar.gz.sha256
+            qs-linux-x86_64.tar.gz
+            qs-linux-x86_64.tar.gz.sha256
 
       - name: Output installation instructions
         run: |

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-02-01
+
+### Fixed
+- Linux release workflow now correctly uploads stable filename (`qs-linux-x86_64.tar.gz`)
+
 ## [0.5.4] - 2026-02-01
 
 ### Changed
@@ -124,7 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip git commands for untracked/ignored files
 - Exit silently when user cancels selection with ESC
 
-[Unreleased]: https://github.com/domzilla/queuestack/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/domzilla/queuestack/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/domzilla/queuestack/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/domzilla/queuestack/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/domzilla/queuestack/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/domzilla/queuestack/compare/v0.5.1...v0.5.2
