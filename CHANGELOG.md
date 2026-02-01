@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-02-01
+
 ### Fixed
 - TUI delete now falls back to `git rm` or permanent delete on Linux (where `trash` command is unavailable)
 
@@ -117,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip git commands for untracked/ignored files
 - Exit silently when user cancels selection with ESC
 
-[Unreleased]: https://github.com/domzilla/queuestack/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/domzilla/queuestack/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/domzilla/queuestack/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/domzilla/queuestack/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/domzilla/queuestack/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/domzilla/queuestack/compare/v0.4.1...v0.5.0
