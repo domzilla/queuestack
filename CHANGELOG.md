@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-02-01
+
+### Added
+- Linux/WSL support with pre-built x86_64 binaries in GitHub releases
+
 ## [0.5.1] - 2026-02-01
 
 ### Fixed
@@ -109,12 +114,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Skip git commands for untracked/ignored files
 - Exit silently when user cancels selection with ESC
 
-[Unreleased]: https://github.com/domrodem/queuestack/compare/v0.5.0...HEAD
-[0.5.0]: https://github.com/domrodem/queuestack/compare/v0.4.1...v0.5.0
-[0.4.1]: https://github.com/domrodem/queuestack/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/domrodem/queuestack/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/domrodem/queuestack/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/domrodem/queuestack/compare/v0.1.3...v0.2.0
-[0.1.3]: https://github.com/domrodem/queuestack/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/domrodem/queuestack/compare/v0.1.0...v0.1.2
-[0.1.0]: https://github.com/domrodem/queuestack/releases/tag/v0.1.0
+[Unreleased]: https://github.com/domzilla/queuestack/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/domzilla/queuestack/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/domzilla/queuestack/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/domzilla/queuestack/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/domzilla/queuestack/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/domzilla/queuestack/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/domzilla/queuestack/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/domzilla/queuestack/compare/v0.1.3...v0.2.0
+[0.1.3]: https://github.com/domzilla/queuestack/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/domzilla/queuestack/compare/v0.1.0...v0.1.2
+[0.1.0]: https://github.com/domzilla/queuestack/releases/tag/v0.1.0

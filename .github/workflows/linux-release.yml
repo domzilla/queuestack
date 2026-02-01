@@ -1,0 +1,87 @@
+name: Linux Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    name: Build Linux (x86_64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Run tests
+        run: cargo test --release
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create Linux tarball
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          DIST_DIR="qs-${VERSION}-linux-x86_64"
+
+          mkdir -p "$DIST_DIR/bin"
+          mkdir -p "$DIST_DIR/completions"
+
+          # Copy binary
+          cp target/release/qs "$DIST_DIR/bin/"
+
+          # Generate shell completions
+          "$DIST_DIR/bin/qs" completions bash > "$DIST_DIR/completions/qs.bash"
+          "$DIST_DIR/bin/qs" completions zsh > "$DIST_DIR/completions/_qs"
+          "$DIST_DIR/bin/qs" completions fish > "$DIST_DIR/completions/qs.fish"
+
+          # Create tarball
+          tar -czf "qs-${VERSION}-linux-x86_64.tar.gz" "$DIST_DIR"
+
+          # Calculate SHA256
+          sha256sum "qs-${VERSION}-linux-x86_64.tar.gz" > "qs-${VERSION}-linux-x86_64.tar.gz.sha256"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            qs-*-linux-x86_64.tar.gz
+            qs-*-linux-x86_64.tar.gz.sha256
+
+      - name: Output installation instructions
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          echo "## Linux Installation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "curl -sL https://github.com/domzilla/queuestack/releases/download/${{ github.ref_name }}/qs-${VERSION}-linux-x86_64.tar.gz | tar xz" >> $GITHUB_STEP_SUMMARY
+          echo 'sudo mv qs-*/bin/qs /usr/local/bin/' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Shell Completions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Bash:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'sudo cp qs-*/completions/qs.bash /etc/bash_completion.d/qs' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Zsh:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'sudo cp qs-*/completions/_qs /usr/local/share/zsh/site-functions/' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Fish:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo 'cp qs-*/completions/qs.fish ~/.config/fish/completions/' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
