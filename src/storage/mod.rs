@@ -712,6 +712,57 @@ fn cleanup_empty_attachment_dir(dir: &Path) {
     }
 }
 
+/// Deletes an item file and its attachment directory.
+///
+/// Uses `trash` command if available (macOS), otherwise uses git rm or standard remove.
+pub fn delete_item(path: &Path) -> Result<()> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let attachment_dir = attachment_dir_for_item(path);
+
+    // Try to use trash command (macOS) for safe deletion
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::{Command, Stdio};
+
+        let status = Command::new("trash")
+            .arg(path)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+
+        if status.is_ok_and(|s| s.success()) {
+            // Also trash attachment directory if it exists
+            if attachment_dir.exists() {
+                let _ = Command::new("trash")
+                    .arg(&attachment_dir)
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .status();
+            }
+            return Ok(());
+        }
+        // Fall through to git rm / standard remove
+    }
+
+    // Use git rm if in a git repo, otherwise standard remove
+    git::remove_file(path)?;
+
+    // Remove attachment directory if it exists
+    if attachment_dir.exists() {
+        std::fs::remove_dir_all(&attachment_dir).with_context(|| {
+            format!(
+                "Failed to remove attachment directory: {}",
+                attachment_dir.display()
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
 /// Finds all attachment files for an item.
 ///
 /// Looks for files in the item's `.attachments/` sibling directory.

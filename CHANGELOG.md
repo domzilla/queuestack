@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- TUI delete now falls back to `git rm` or permanent delete on Linux (where `trash` command is unavailable)
+
 ## [0.5.2] - 2026-02-01
 
 ### Added

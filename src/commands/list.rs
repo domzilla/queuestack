@@ -8,7 +8,6 @@
 
 use std::cmp::Reverse;
 use std::path::PathBuf;
-use std::process::Command;
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
@@ -257,27 +256,12 @@ fn handle_item_action(action: ItemAction, config: &Config) -> Result<()> {
             let item = Item::load(&path)?;
             let message = format!("Delete '{}'?", item.title());
             if ui::confirm(&message)? == Some(true) {
-                // Move item to trash
-                let status = Command::new("trash")
-                    .arg(&path)
-                    .status()
-                    .context("Failed to execute trash command")?;
-
-                if status.success() {
-                    // Also trash attachment directory if it exists
-                    let attachment_dir = storage::attachment_dir_for_item(&path);
-                    if attachment_dir.exists() {
-                        let _ = Command::new("trash").arg(&attachment_dir).status();
-                    }
-
-                    println!(
-                        "{} Moved to trash: {}",
-                        "✓".green(),
-                        config.relative_path(&path).display()
-                    );
-                } else {
-                    anyhow::bail!("Failed to move item to trash");
-                }
+                storage::delete_item(&path)?;
+                println!(
+                    "{} Deleted: {}",
+                    "✓".green(),
+                    config.relative_path(&path).display()
+                );
             }
         }
     }
