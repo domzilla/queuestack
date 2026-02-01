@@ -235,21 +235,27 @@ project-root/
 └── queuestack/             # Item storage
     ├── .archive/       # Closed items (hidden, preserves category structure)
     │   ├── bugs/       # Archived items from bugs category
-    │   │   └── 260109-02F7K9M-fix-login-styling.md
-    │   └── 260109-02F8L1P-old-task.md  # Archived uncategorized item
+    │   │   ├── 260109-02F7K9M-fix-login-styling.md
+    │   │   └── 260109-02F7K9M-fix-login-styling.attachments/
+    │   │       └── 1-screenshot.png
+    │   └── 260109-02F8L1P-old-task.md
     ├── .templates/     # Templates (hidden, preserves category structure)
     │   ├── bugs/       # Templates in bugs category
     │   │   └── 260109-02F7K9M-bug-report.md
-    │   └── 260109-02F8L1P-feature-request.md  # Uncategorized template
+    │   └── 260109-02F8L1P-feature-request.md
     ├── bugs/           # Category subdirectory
     │   ├── 260109-02F7K9M-fix-login-styling.md
-    │   └── 260109-02F7K9M-Attachment-1-screenshot.png
+    │   └── 260109-02F7K9M-fix-login-styling.attachments/
+    │       ├── 1-screenshot.png
+    │       └── 2-notes.md
     └── 260109-02F8L1P-add-dark-mode.md  # Uncategorized item in root
 ```
 
 **Category**: Derived from folder path, NOT stored in item metadata. Moving an item to a different folder changes its category.
 
 **Templates**: Stored in `.templates/` directory with `status: template`. Category structure mirrors the main item storage.
+
+**Attachments**: File attachments are stored in a sibling directory named `{item-stem}.attachments/`. This prevents markdown attachments from being picked up as items.
 
 ## Item File Format
 ```yaml
@@ -263,7 +269,7 @@ labels:
   - bug
   - ui
 attachments:
-  - 260109-02F7K9M-Attachment-1-screenshot.png
+  - 1-screenshot.png
   - https://github.com/org/repo/issues/42
 ---
 
@@ -273,6 +279,8 @@ Description and notes go here in Markdown.
 **Status values:** `open`, `closed`, `template`
 
 Note: Category is NOT stored in frontmatter - it's derived from the item's folder location.
+
+**Attachment format**: File attachments use format `{counter}-{name}.{ext}` (e.g., `1-screenshot.png`). The files are stored in a `.attachments/` sibling directory.
 
 **Label/Category Normalization**: Non-alphanumeric characters (except `-` and `_`) in labels and categories are silently replaced with hyphens (`my label` → `my-label`, `level1/level2` → `level1-level2`).
 

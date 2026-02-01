@@ -523,8 +523,8 @@ preserve history.",
     /// Manage item attachments (add, remove)
     #[command(
         long_about = "Manage attachments for items.\n\n\
-Attachments can be files (copied to item directory) or URLs (stored as references). \
-File attachments are renamed to follow the pattern: {ID}-Attachment-{N}-{name}.{ext}\n\n\
+Attachments can be files (copied to a sibling .attachments directory) or URLs (stored as references). \
+File attachments are renamed to follow the pattern: {N}-{name}.{ext}\n\n\
 To list attachments for an item, use: qs list --attachments --id <ID>",
         after_help = concat!(
             h!("Examples:"), "\n  ",

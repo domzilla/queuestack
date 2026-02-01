@@ -231,11 +231,11 @@ fn test_new_with_attachments() {
         "Should have URL attachment"
     );
     assert!(
-        content.contains("-Attachment-1-"),
+        content.contains("1-screenshot.png"),
         "Should have first file attachment"
     );
     assert!(
-        content.contains("-Attachment-2-"),
+        content.contains("2-debug.log"),
         "Should have second file attachment"
     );
 

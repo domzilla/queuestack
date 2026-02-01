@@ -315,21 +315,13 @@ fn execute_edit_wizard(path: &std::path::Path, config: &Config) -> Result<()> {
     // Handle new attachments
     if !output.attachments.is_empty() {
         // For new attachments, we need to process them
-        let item_dir = updated
-            .attachment_dir()
-            .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?
-            .to_path_buf();
-        let item_id = updated.id().to_string();
-
         for source in &output.attachments {
             // Skip existing attachments
             if updated.attachments().contains(source) {
                 continue;
             }
             // Process new attachment
-            if let Ok(result) =
-                storage::process_attachment(source, &mut updated, &item_dir, &item_id)
-            {
+            if let Ok(result) = storage::process_attachment(source, &mut updated, path) {
                 match result {
                     storage::AttachmentResult::UrlAdded(url) => {
                         println!("  {} {}", "+".green(), url);

@@ -280,8 +280,7 @@ pub fn print_warnings(warnings: &[String]) {
 /// Processes attachments and prints results.
 ///
 /// This is a shared utility for `new` and `attach` commands that handles:
-/// - Setting up the item's attachment directory
-/// - Processing each attachment source
+/// - Processing each attachment source (files are copied to `.attachments/` sibling dir)
 /// - Printing colored output for each result
 /// - Saving the updated item
 ///
@@ -296,16 +295,10 @@ pub fn process_and_save_attachments(
     // Set path so attachment_dir() works
     item.path = Some(path.to_path_buf());
 
-    let item_dir = item
-        .attachment_dir()
-        .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?
-        .to_path_buf();
-    let item_id = item.id().to_string();
-
     let mut added_count = 0;
 
     for source in sources {
-        match storage::process_attachment(source, item, &item_dir, &item_id)? {
+        match storage::process_attachment(source, item, path)? {
             AttachmentResult::UrlAdded(url) => {
                 println!("  {} {}", "+".green(), url);
                 added_count += 1;

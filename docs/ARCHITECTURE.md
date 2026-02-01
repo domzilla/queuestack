@@ -294,22 +294,26 @@ This enables:
 
 #### Attachment Handling
 
-Attachments follow the naming convention: `{item_id}-Attachment-{counter}-{name}.{ext}`
+Attachments are stored in a sibling directory named `{item-stem}.attachments/`.
+Attachment files use the naming convention: `{counter}-{name}.{ext}` (e.g., `1-screenshot.png`).
 
 ```rust
 pub struct AttachmentFileName {
-    pub item_id: String,
     pub counter: u32,
     pub name: String,
     pub extension: Option<String>,
 }
+
+/// Returns the attachment directory path for an item file.
+pub fn attachment_dir_for_item(item_path: &Path) -> PathBuf
 ```
 
 Key functions:
-- `process_attachment()` — Handle URL or file
-- `copy_attachment()` — Copy file with standardized name
-- `find_attachment_files()` — Find all attachments for an item
-- `move_attachments()` — Move attachments with item
+- `attachment_dir_for_item()` — Get the `.attachments/` sibling directory path
+- `process_attachment()` — Handle URL or file (creates attachment dir if needed)
+- `copy_attachment()` — Copy file to attachment directory with standardized name
+- `find_attachment_files()` — Find all attachments in an item's `.attachments/` directory
+- `move_attachments()` — Move attachment directory with item
 
 #### `git.rs` — Git Integration
 
@@ -482,7 +486,7 @@ pub const DEFAULT_STACK_DIR: &str = "queuestack";
 pub const DEFAULT_ARCHIVE_DIR: &str = ".archive";
 pub const MAX_SLUG_LENGTH: usize = 50;
 pub const FRONTMATTER_DELIMITER: &str = "---";
-pub const ATTACHMENT_INFIX: &str = "-Attachment-";
+pub const ATTACHMENTS_DIR_SUFFIX: &str = ".attachments";
 
 // UI
 pub const UI_TITLE_TRUNCATE_LEN: usize = 40;
@@ -611,13 +615,17 @@ project/
     │   └── 260107-...-feature-request.md
     ├── bugs/               # Category subdirectory
     │   ├── 260109-...-fix-login.md
-    │   └── 260109-...-Attachment-1-screenshot.png
+    │   └── 260109-...-fix-login.attachments/
+    │       ├── 1-screenshot.png
+    │       └── 2-notes.md
     └── 260110-...-add-feature.md
 ```
 
 **Category**: Derived from folder path, NOT stored in item metadata. Moving an item to a different folder changes its category. Archive and templates preserve category folder structure.
 
 **Templates**: Items with `status: template` stored in `.templates/` directory. Used as patterns for creating new items.
+
+**Attachments**: File attachments are stored in a sibling directory named `{item-stem}.attachments/`. This prevents markdown attachments from being picked up as items.
 
 ## Testing Strategy
 

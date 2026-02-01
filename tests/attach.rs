@@ -147,17 +147,17 @@ fn test_attach_add_counter_increments() {
     let attachments = env.list_attachment_files(item_id);
     assert_eq!(attachments.len(), 2);
 
-    // Check that counters are different
+    // Check that counters are different (new format: {counter}-{name}.{ext})
     let names: Vec<String> = attachments
         .iter()
         .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
         .collect();
     assert!(
-        names.iter().any(|n| n.contains("-1-")),
+        names.iter().any(|n| n.starts_with("1-")),
         "Should have counter 1"
     );
     assert!(
-        names.iter().any(|n| n.contains("-2-")),
+        names.iter().any(|n| n.starts_with("2-")),
         "Should have counter 2"
     );
 }
@@ -257,23 +257,28 @@ fn test_attach_add_to_item_in_category() {
     };
     commands::attach_add(&args).expect("attach add in category should succeed");
 
-    // Verify attachment is in category directory
+    // Verify attachment directory is in category directory
     let category_path = env.stack_path().join("bugs");
-    let attachments: Vec<_> = std::fs::read_dir(&category_path)
+    let attachment_dirs: Vec<_> = std::fs::read_dir(&category_path)
         .unwrap()
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| {
-            p.file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|name| name.contains("-Attachment-"))
+            p.is_dir()
+                && p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|name| name.ends_with(".attachments"))
         })
         .collect();
     assert_eq!(
-        attachments.len(),
+        attachment_dirs.len(),
         1,
-        "Attachment should be in category directory"
+        "Attachment dir should be in category directory"
     );
+
+    // Verify attachment file exists
+    let files = env.list_attachment_files("260101-AAA");
+    assert_eq!(files.len(), 1, "Attachment file should exist");
 }
 
 // =============================================================================
@@ -292,10 +297,7 @@ fn test_attach_remove_single() {
         item_id,
         "Test Item",
         "open",
-        &[
-            &format!("{item_id}-Attachment-1-file.txt"),
-            "https://example.com",
-        ],
+        &["1-file.txt", "https://example.com"],
         None,
     );
 
@@ -323,11 +325,7 @@ fn test_attach_remove_multiple() {
         item_id,
         "Test Item",
         "open",
-        &[
-            &format!("{item_id}-Attachment-1-a.txt"),
-            &format!("{item_id}-Attachment-2-b.txt"),
-            &format!("{item_id}-Attachment-3-c.txt"),
-        ],
+        &["1-a.txt", "2-b.txt", "3-c.txt"],
         None,
     );
 
@@ -346,7 +344,7 @@ fn test_attach_remove_multiple() {
             .unwrap()
             .to_str()
             .unwrap()
-            .contains("-2-"),
+            .contains("2-"),
         "Middle attachment should remain"
     );
 }
@@ -474,10 +472,7 @@ fn test_attachments_list_mixed() {
         item_id,
         "Test Item",
         "open",
-        &[
-            &format!("{item_id}-Attachment-1-file.txt"),
-            "https://example.com",
-        ],
+        &["1-file.txt", "https://example.com"],
         None,
     );
 
@@ -508,14 +503,7 @@ fn test_update_category_moves_attachments() {
     commands::init().unwrap();
 
     let item_id = "260101-AAA";
-    create_test_item_with_attachments(
-        &env,
-        item_id,
-        "Test Item",
-        "open",
-        &[&format!("{item_id}-Attachment-1-file.txt")],
-        None,
-    );
+    create_test_item_with_attachments(&env, item_id, "Test Item", "open", &["1-file.txt"], None);
 
     // Move to category
     let args = UpdateArgs {
@@ -529,17 +517,31 @@ fn test_update_category_moves_attachments() {
     };
     commands::update(args).expect("update category should succeed");
 
-    // Verify attachment is in category directory
+    // Verify attachment directory is in category directory
     let category_dir = env.stack_path().join("bugs");
-    let attachments: Vec<_> = std::fs::read_dir(&category_dir)
+    let attachment_dirs: Vec<_> = std::fs::read_dir(&category_dir)
         .unwrap()
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| {
-            p.file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|name| name.contains("-Attachment-"))
+            p.is_dir()
+                && p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|name| name.ends_with(".attachments"))
         })
         .collect();
-    assert_eq!(attachments.len(), 1, "Attachment should be in category");
+    assert_eq!(
+        attachment_dirs.len(),
+        1,
+        "Attachment dir should be in category"
+    );
+
+    // Verify attachment file is in the attachment directory
+    let attachment_files: Vec<_> = std::fs::read_dir(&attachment_dirs[0])
+        .unwrap()
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .collect();
+    assert_eq!(attachment_files.len(), 1, "Attachment file should exist");
 }

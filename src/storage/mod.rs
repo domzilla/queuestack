@@ -14,8 +14,7 @@ use walkdir::WalkDir;
 
 use crate::{
     config::Config,
-    constants::{ATTACHMENT_INFIX, ITEM_FILE_EXTENSION},
-    id,
+    constants::{ATTACHMENTS_DIR_SUFFIX, ITEM_FILE_EXTENSION},
     item::{slugify, Item},
 };
 
@@ -407,10 +406,8 @@ fn move_item_to_dir(
     // Remember source directory for cleanup
     let src_dir = path.parent().map(Path::to_path_buf);
 
-    // Move attachments first
-    let warnings = src_dir
-        .as_ref()
-        .map_or_else(Vec::new, |dir| move_attachments(dir, dest_dir, path));
+    // Move attachments first (from source item path to destination item path)
+    let warnings = move_attachments(path, &dest);
 
     git::move_file(path, &dest)?;
 
@@ -506,11 +503,11 @@ fn cleanup_empty_category_dir(config: &Config, dir: &Path) {
 // Attachment Operations
 // =============================================================================
 
-/// Encapsulates the attachment filename convention: `{item_id}-Attachment-{counter}-{name}.{ext}`
+/// Encapsulates the attachment filename convention: `{counter}-{name}.{ext}`
+///
+/// Attachments are stored in a sibling directory named `{item-stem}.attachments/`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttachmentFileName {
-    /// Item ID prefix
-    pub item_id: String,
     /// Attachment counter (1-based)
     pub counter: u32,
     /// Slugified name
@@ -521,9 +518,8 @@ pub struct AttachmentFileName {
 
 impl AttachmentFileName {
     /// Creates a new attachment filename.
-    pub fn new(item_id: &str, counter: u32, name: &str, extension: Option<&str>) -> Self {
+    pub fn new(counter: u32, name: &str, extension: Option<&str>) -> Self {
         Self {
-            item_id: item_id.to_string(),
             counter,
             name: name.to_string(),
             extension: extension.map(String::from),
@@ -532,22 +528,18 @@ impl AttachmentFileName {
 
     /// Parses an attachment filename.
     ///
-    /// Expected format: `{item_id}-Attachment-{counter}-{name}.{ext}`
+    /// Expected format: `{counter}-{name}.{ext}`
     pub fn parse(filename: &str) -> Option<Self> {
         // Remove extension
         let (stem, extension) = filename.rfind('.').map_or((filename, None), |dot_pos| {
             (&filename[..dot_pos], Some(&filename[dot_pos + 1..]))
         });
 
-        // Split by attachment infix
-        let (item_id, rest) = stem.split_once(ATTACHMENT_INFIX)?;
-
-        // Extract counter and name
-        let (counter_str, name) = rest.split_once('-').unwrap_or((rest, "file"));
+        // Extract counter and name (counter-name)
+        let (counter_str, name) = stem.split_once('-')?;
         let counter = counter_str.parse().ok()?;
 
         Some(Self {
-            item_id: item_id.to_string(),
             counter,
             name: name.to_string(),
             extension: extension.map(String::from),
@@ -557,25 +549,22 @@ impl AttachmentFileName {
     /// Returns the full filename string.
     pub fn to_filename(&self) -> String {
         self.extension.as_ref().map_or_else(
-            || {
-                format!(
-                    "{}{}{}-{}",
-                    self.item_id, ATTACHMENT_INFIX, self.counter, self.name
-                )
-            },
-            |ext| {
-                format!(
-                    "{}{}{}-{}.{}",
-                    self.item_id, ATTACHMENT_INFIX, self.counter, self.name, ext
-                )
-            },
+            || format!("{}-{}", self.counter, self.name),
+            |ext| format!("{}-{}.{}", self.counter, self.name, ext),
         )
     }
+}
 
-    /// Returns the prefix used to find attachments for an item.
-    pub fn prefix_for_item(item_id: &str) -> String {
-        format!("{item_id}{ATTACHMENT_INFIX}")
-    }
+/// Returns the attachment directory path for an item file.
+///
+/// e.g., `bugs/260131-ABCDEF-fix-login.md` → `bugs/260131-ABCDEF-fix-login.attachments/`
+pub fn attachment_dir_for_item(item_path: &Path) -> PathBuf {
+    let stem = item_path.file_stem().unwrap_or_default();
+    item_path.with_file_name(format!(
+        "{}{}",
+        stem.to_string_lossy(),
+        ATTACHMENTS_DIR_SUFFIX
+    ))
 }
 
 /// Result of processing a single attachment.
@@ -592,14 +581,13 @@ pub enum AttachmentResult {
 /// Processes a single attachment source (file path or URL).
 ///
 /// - URLs are returned as-is for adding to frontmatter
-/// - Files are copied to the item directory with a standardized name
+/// - Files are copied to the item's attachment directory with a standardized name
 ///
 /// Returns `AttachmentResult` indicating what happened.
 pub fn process_attachment(
     source: &str,
     item: &mut crate::item::Item,
-    item_dir: &Path,
-    item_id: &str,
+    item_path: &Path,
 ) -> Result<AttachmentResult> {
     use crate::item::is_url;
 
@@ -623,7 +611,8 @@ pub fn process_attachment(
     }
 
     let counter = item.next_attachment_counter();
-    let new_filename = copy_attachment(&source_path, item_dir, item_id, counter)?;
+    let attachment_dir = attachment_dir_for_item(item_path);
+    let new_filename = copy_attachment(&source_path, &attachment_dir, counter)?;
     item.add_attachment(new_filename.clone());
 
     Ok(AttachmentResult::FileCopied {
@@ -632,15 +621,11 @@ pub fn process_attachment(
     })
 }
 
-/// Copies a file as an attachment to the item's directory.
+/// Copies a file as an attachment to the item's attachment directory.
 ///
+/// Creates the attachment directory if it doesn't exist.
 /// Returns the new filename using the standard attachment naming convention.
-pub fn copy_attachment(
-    source: &Path,
-    item_dir: &Path,
-    item_id: &str,
-    counter: u32,
-) -> Result<String> {
+pub fn copy_attachment(source: &Path, attachment_dir: &Path, counter: u32) -> Result<String> {
     // Get original filename parts
     let original_name = source
         .file_stem()
@@ -654,10 +639,18 @@ pub fn copy_attachment(
     let slug_part = if slug.is_empty() { "file" } else { &slug };
 
     // Build filename using the struct
-    let attachment = AttachmentFileName::new(item_id, counter, slug_part, extension);
+    let attachment = AttachmentFileName::new(counter, slug_part, extension);
     let new_filename = attachment.to_filename();
 
-    let dest = item_dir.join(&new_filename);
+    // Create attachment directory if needed
+    std::fs::create_dir_all(attachment_dir).with_context(|| {
+        format!(
+            "Failed to create attachment directory: {}",
+            attachment_dir.display()
+        )
+    })?;
+
+    let dest = attachment_dir.join(&new_filename);
 
     // Copy the file
     std::fs::copy(source, &dest).with_context(|| {
@@ -671,11 +664,12 @@ pub fn copy_attachment(
     Ok(new_filename)
 }
 
-/// Deletes an attachment file.
+/// Deletes an attachment file from the attachment directory.
 ///
 /// Uses `trash` command if available (macOS), otherwise uses git rm or standard remove.
-pub fn delete_attachment(item_dir: &Path, filename: &str) -> Result<()> {
-    let path = item_dir.join(filename);
+/// Cleans up the attachment directory if it becomes empty.
+pub fn delete_attachment(attachment_dir: &Path, filename: &str) -> Result<()> {
+    let path = attachment_dir.join(filename);
 
     if !path.exists() {
         // File already gone, nothing to do
@@ -694,69 +688,95 @@ pub fn delete_attachment(item_dir: &Path, filename: &str) -> Result<()> {
             .status();
 
         if status.is_ok_and(|s| s.success()) {
+            cleanup_empty_attachment_dir(attachment_dir);
             return Ok(());
         }
         // Fall through to git rm / standard remove
     }
 
     // Use git rm if in a git repo, otherwise standard remove
-    git::remove_file(&path)
+    git::remove_file(&path)?;
+    cleanup_empty_attachment_dir(attachment_dir);
+    Ok(())
 }
 
-/// Finds all attachment files for an item in a directory.
-///
-/// Looks for files matching the attachment naming convention.
-pub fn find_attachment_files(item_dir: &Path, item_id: &str) -> Vec<PathBuf> {
-    let prefix = AttachmentFileName::prefix_for_item(item_id);
+/// Removes an empty attachment directory.
+fn cleanup_empty_attachment_dir(dir: &Path) {
+    if dir.exists() {
+        if let Ok(mut entries) = std::fs::read_dir(dir) {
+            if entries.next().is_none() {
+                // Directory is empty, remove it
+                let _ = std::fs::remove_dir(dir);
+            }
+        }
+    }
+}
 
-    if !item_dir.exists() {
+/// Finds all attachment files for an item.
+///
+/// Looks for files in the item's `.attachments/` sibling directory.
+pub fn find_attachment_files(item_path: &Path) -> Vec<PathBuf> {
+    let attachment_dir = attachment_dir_for_item(item_path);
+
+    if !attachment_dir.exists() {
         return Vec::new();
     }
 
-    std::fs::read_dir(item_dir)
+    std::fs::read_dir(&attachment_dir)
         .into_iter()
         .flatten()
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| {
-            p.file_name()
-                .and_then(|n| n.to_str())
-                .is_some_and(|name| name.starts_with(&prefix))
-        })
+        .filter(|p| p.is_file())
         .collect()
 }
 
-/// Moves attachment files alongside an item.
+/// Moves the attachment directory alongside an item.
 ///
 /// Called internally when archiving, unarchiving, or moving items between categories.
-/// Returns a list of warnings for any attachments that failed to move.
-fn move_attachments(src_dir: &Path, dest_dir: &Path, item_path: &Path) -> Vec<String> {
+/// Moves the entire `.attachments/` directory as a unit.
+/// Returns a list of warnings for any issues during the move.
+fn move_attachments(src_item_path: &Path, dest_item_path: &Path) -> Vec<String> {
     let mut warnings = Vec::new();
 
-    // Extract item ID from the item filename
-    let Some(item_id) = item_path
-        .file_name()
-        .and_then(|s| s.to_str())
-        .and_then(id::extract_from_filename)
-    else {
-        return warnings; // Can't determine ID, skip attachment move
-    };
+    let src_attachment_dir = attachment_dir_for_item(src_item_path);
+    let dest_attachment_dir = attachment_dir_for_item(dest_item_path);
 
-    let attachments = find_attachment_files(src_dir, item_id);
+    // Nothing to move if source directory doesn't exist
+    if !src_attachment_dir.exists() {
+        return warnings;
+    }
 
-    for attachment_path in attachments {
-        if let Some(filename) = attachment_path.file_name() {
-            let dest_path = dest_dir.join(filename);
-            // Use git mv for tracked files, falls back to rename
-            if let Err(e) = git::move_file(&attachment_path, &dest_path) {
-                warnings.push(format!(
-                    "Failed to move attachment {}: {}",
-                    attachment_path.display(),
-                    e
-                ));
+    // Move each file in the attachment directory
+    // We can't just rename the directory because git needs to track individual files
+    if let Ok(entries) = std::fs::read_dir(&src_attachment_dir) {
+        // Create destination directory
+        if let Err(e) = std::fs::create_dir_all(&dest_attachment_dir) {
+            warnings.push(format!(
+                "Failed to create attachment directory {}: {}",
+                dest_attachment_dir.display(),
+                e
+            ));
+            return warnings;
+        }
+
+        for entry in entries.filter_map(Result::ok) {
+            let src_path = entry.path();
+            if let Some(filename) = src_path.file_name() {
+                let dest_path = dest_attachment_dir.join(filename);
+                if let Err(e) = git::move_file(&src_path, &dest_path) {
+                    warnings.push(format!(
+                        "Failed to move attachment {}: {}",
+                        src_path.display(),
+                        e
+                    ));
+                }
             }
         }
     }
+
+    // Clean up empty source directory
+    cleanup_empty_attachment_dir(&src_attachment_dir);
 
     warnings
 }

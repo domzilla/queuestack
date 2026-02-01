@@ -154,6 +154,9 @@ Items are Markdown files with YAML frontmatter:
 ```
 queuestack/
 ├── 260109-0A2B3C4-fix-login-bug.md
+├── 260109-0A2B3C4-fix-login-bug.attachments/
+│   ├── 1-screenshot.png
+│   └── 2-notes.md
 ├── bugs/
 │   └── 260110-0B3C4D5-memory-leak.md
 ├── .archive/
@@ -175,7 +178,7 @@ labels:
   - bug
   - urgent
 attachments:
-  - 260109-0A2B3C4-Attachment-1-screenshot.png
+  - 1-screenshot.png
   - https://github.com/org/repo/issues/42
 ---
 
@@ -187,7 +190,7 @@ Description and notes in Markdown.
 3. See console error
 ```
 
-**Note:** Category is derived from the folder path, not stored in frontmatter. An item in `queuestack/bugs/` has category `bugs`. Status can be `open`, `closed`, or `template`.
+**Note:** Category is derived from the folder path, not stored in frontmatter. An item in `queuestack/bugs/` has category `bugs`. Status can be `open`, `closed`, or `template`. Attachments are stored in a sibling `.attachments/` directory.
 
 ## Configuration
 

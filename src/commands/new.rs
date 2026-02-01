@@ -447,17 +447,9 @@ fn copy_template_attachments(
     item: &mut Item,
     item_path: &std::path::Path,
 ) -> Result<()> {
-    let template_dir = template.path.as_ref().and_then(|p| p.parent());
+    let template_attachment_dir = template.attachment_dir();
 
-    let Some(template_dir) = template_dir else {
-        return Ok(()); // No template path, skip attachment copying
-    };
-
-    let item_dir = item_path
-        .parent()
-        .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?;
-
-    let item_id = item.id().to_string();
+    let item_attachment_dir = storage::attachment_dir_for_item(item_path);
 
     for attachment in template.attachments() {
         if is_url(attachment) {
@@ -465,12 +457,15 @@ fn copy_template_attachments(
             item.add_attachment(attachment.clone());
             println!("  {} {}", "+".green(), attachment);
         } else {
-            // File: copy from template directory
-            let source_path = template_dir.join(attachment);
-            if source_path.exists() {
+            // File: copy from template's attachment directory
+            let source_path = template_attachment_dir
+                .as_ref()
+                .map(|dir| dir.join(attachment));
+
+            if let Some(source_path) = source_path.filter(|p| p.exists()) {
                 let counter = item.next_attachment_counter();
                 let new_filename =
-                    storage::copy_attachment(&source_path, item_dir, &item_id, counter)?;
+                    storage::copy_attachment(&source_path, &item_attachment_dir, counter)?;
                 item.add_attachment(new_filename.clone());
                 println!("  {} {} -> {}", "+".green(), attachment, new_filename);
             } else {

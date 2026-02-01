@@ -394,10 +394,7 @@ fn test_list_attachments_output_plain_format() {
         "260101-AAA",
         "Task",
         "open",
-        &[
-            "260101-AAA-Attachment-1-screenshot.png",
-            "https://example.com/doc.pdf",
-        ],
+        &["1-screenshot.png", "https://example.com/doc.pdf"],
         None,
     );
 
@@ -406,11 +403,10 @@ fn test_list_attachments_output_plain_format() {
         .assert()
         .success()
         // Should list attachments one per line
-        .stdout(predicate::str::contains("260101-AAA-Attachment-1-screenshot.png"))
+        .stdout(predicate::str::contains("1-screenshot.png"))
         .stdout(predicate::str::contains("https://example.com/doc.pdf"))
         // No headers
         .stdout(predicate::str::contains("Attachments:").not())
-        .stdout(predicate::str::contains("Attachment").not().or(predicate::str::contains("Attachment-")))
         .stdout(predicate::str::contains("File").not())
         .stdout(predicate::str::contains("URL").not());
 }
@@ -441,11 +437,7 @@ fn test_list_attachments_one_per_line() {
         "260101-AAA",
         "Task",
         "open",
-        &[
-            "260101-AAA-Attachment-1-file1.png",
-            "260101-AAA-Attachment-2-file2.pdf",
-            "https://example.com/link",
-        ],
+        &["1-file1.png", "2-file2.pdf", "https://example.com/link"],
         None,
     );
 
@@ -586,7 +578,7 @@ fn test_list_meta_with_attachments() {
         "260101-AAA",
         "Task",
         "open",
-        &["260101-AAA-Attachment-1-file.png", "https://example.com"],
+        &["1-file.png", "https://example.com"],
         None,
     );
 
@@ -595,9 +587,7 @@ fn test_list_meta_with_attachments() {
         .assert()
         .success()
         .stdout(predicate::str::contains("attachments:"))
-        .stdout(predicate::str::contains(
-            "- 260101-AAA-Attachment-1-file.png",
-        ))
+        .stdout(predicate::str::contains("- 1-file.png"))
         .stdout(predicate::str::contains("- https://example.com"));
 }
 
@@ -700,7 +690,7 @@ fn test_list_attachments_with_file_option() {
         "260101-AAA",
         "Task",
         "open",
-        &["260101-AAA-Attachment-1-screenshot.png"],
+        &["1-screenshot.png"],
         None,
     );
 
@@ -714,9 +704,7 @@ fn test_list_attachments_with_file_option() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "260101-AAA-Attachment-1-screenshot.png",
-        ));
+        .stdout(predicate::str::contains("1-screenshot.png"));
 }
 
 #[test]

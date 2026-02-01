@@ -31,8 +31,8 @@ pub const MAX_SLUG_LENGTH: usize = 50;
 /// YAML frontmatter delimiter.
 pub const FRONTMATTER_DELIMITER: &str = "---";
 
-/// Attachment filename infix (between item ID and counter).
-pub const ATTACHMENT_INFIX: &str = "-Attachment-";
+/// Suffix for attachment directory (sibling to item file).
+pub const ATTACHMENTS_DIR_SUFFIX: &str = ".attachments";
 
 // =============================================================================
 // File System

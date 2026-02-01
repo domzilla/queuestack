@@ -77,11 +77,10 @@ pub fn execute_remove(args: &AttachRemoveArgs) -> Result<()> {
         bail!("Item has no attachments");
     }
 
-    // Get item directory
-    let item_dir = item
+    // Get attachment directory
+    let attachment_dir = item
         .attachment_dir()
-        .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?
-        .to_path_buf();
+        .ok_or_else(|| anyhow::anyhow!("Invalid item path"))?;
 
     // Validate all indices first (1-based from user)
     for &idx in &args.indices {
@@ -107,7 +106,7 @@ pub fn execute_remove(args: &AttachRemoveArgs) -> Result<()> {
         if let Some(removed) = item.remove_attachment(idx_0) {
             // If it's a file (not URL), delete from disk
             if !is_url(&removed) {
-                if let Err(e) = storage::delete_attachment(&item_dir, &removed) {
+                if let Err(e) = storage::delete_attachment(&attachment_dir, &removed) {
                     eprintln!(
                         "  {} Failed to delete file {}: {}",
                         "!".yellow(),

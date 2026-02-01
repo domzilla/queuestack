@@ -533,48 +533,78 @@ impl TestEnv {
         path
     }
 
-    /// Lists attachment files for an item in a given directory.
-    fn list_attachment_files_in(&self, item_id: &str, search_dir: &Path) -> Vec<PathBuf> {
-        let pattern = format!("{item_id}-Attachment-");
+    /// Returns the attachment directory path for an item file.
+    fn attachment_dir_for_item(item_path: &Path) -> PathBuf {
+        let stem = item_path.file_stem().unwrap_or_default();
+        item_path.with_file_name(format!("{}.attachments", stem.to_string_lossy()))
+    }
 
-        walkdir::WalkDir::new(search_dir)
+    /// Lists attachment files in the `.attachments/` directory for an item.
+    fn list_attachment_files_for_item(&self, item_path: &Path) -> Vec<PathBuf> {
+        let attachment_dir = Self::attachment_dir_for_item(item_path);
+        if !attachment_dir.exists() {
+            return Vec::new();
+        }
+
+        fs::read_dir(&attachment_dir)
             .into_iter()
+            .flatten()
             .filter_map(Result::ok)
-            .filter(|e| e.file_type().is_file())
-            .map(|e| e.into_path())
-            .filter(|p| {
-                p.file_name()
-                    .and_then(|n| n.to_str())
-                    .is_some_and(|name| name.starts_with(&pattern))
-            })
+            .map(|e| e.path())
+            .filter(|p| p.is_file())
             .collect()
     }
 
     /// Lists attachment files for an item by ID prefix (excludes archive).
     pub fn list_attachment_files(&self, item_id: &str) -> Vec<PathBuf> {
+        // Find the item file first (excluding archive)
         let archive = self.archive_path();
-        self.list_attachment_files_in(item_id, &self.stack_path())
+        let item_path = walkdir::WalkDir::new(self.stack_path())
             .into_iter()
-            .filter(|p| !p.starts_with(&archive))
-            .collect()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
+            .map(|e| e.into_path())
+            .filter(|p| !p.starts_with(&archive)) // Exclude archive
+            .find(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|name| name.to_lowercase().contains(&item_id.to_lowercase()))
+            });
+
+        item_path
+            .map(|p| self.list_attachment_files_for_item(&p))
+            .unwrap_or_default()
     }
 
-    /// Checks if an attachment file exists in the given directory.
+    /// Checks if an attachment file exists in the item's attachment directory.
     #[allow(dead_code)]
     pub fn attachment_exists(&self, item_path: &Path, attachment_name: &str) -> bool {
-        item_path
-            .parent()
-            .map(|dir| dir.join(attachment_name).exists())
-            .unwrap_or(false)
+        let attachment_dir = Self::attachment_dir_for_item(item_path);
+        attachment_dir.join(attachment_name).exists()
     }
 
     /// Lists attachment files in the archive directory for an item ID.
     pub fn list_archive_attachment_files(&self, item_id: &str) -> Vec<PathBuf> {
-        self.list_attachment_files_in(item_id, &self.archive_path())
+        // Find the item in archive
+        let archive_items = self.list_archive_files();
+        for item_path in archive_items {
+            if item_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|name| name.to_lowercase().contains(&item_id.to_lowercase()))
+            {
+                return self.list_attachment_files_for_item(&item_path);
+            }
+        }
+        Vec::new()
     }
 }
 
 /// Creates a test item with pre-existing attachments.
+///
+/// Attachments are stored in a sibling `.attachments/` directory.
+/// Attachment names in the list should use the new format: `{counter}-{name}.{ext}`
 pub fn create_test_item_with_attachments(
     env: &TestEnv,
     id: &str,
@@ -601,17 +631,26 @@ pub fn create_test_item_with_attachments(
     fs::create_dir_all(&dir).expect("Failed to create directory");
 
     // Create the item file
-    let path = dir.join(filename);
-    fs::write(&path, content).expect("Failed to write item file");
+    let item_path = dir.join(&filename);
+    fs::write(&item_path, content).expect("Failed to write item file");
 
-    // Create the attachment files
-    for attachment in attachments {
-        if !attachment.starts_with("http://") && !attachment.starts_with("https://") {
-            let attachment_path = dir.join(attachment);
+    // Create the attachment directory and files
+    let file_attachments: Vec<_> = attachments
+        .iter()
+        .filter(|a| !a.starts_with("http://") && !a.starts_with("https://"))
+        .collect();
+
+    if !file_attachments.is_empty() {
+        let stem = filename.strip_suffix(".md").unwrap_or(&filename);
+        let attachment_dir = dir.join(format!("{stem}.attachments"));
+        fs::create_dir_all(&attachment_dir).expect("Failed to create attachment directory");
+
+        for attachment in file_attachments {
+            let attachment_path = attachment_dir.join(attachment);
             fs::write(&attachment_path, "test attachment content")
                 .expect("Failed to write attachment");
         }
     }
 
-    path
+    item_path
 }

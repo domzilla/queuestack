@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Refactor attachment storage from flat files to sibling `.attachments/` directories
+  - Old: `queuestack/260109-XXX-Attachment-1-screenshot.png` (alongside item)
+  - New: `queuestack/260109-XXX-item-title.attachments/1-screenshot.png` (sibling directory)
+- Simplify attachment filename format to `{counter}-{name}.{ext}` (e.g., `1-screenshot.png`)
 - Update Homebrew publish system with improved post-publish commands and placeholders
 
 ## [0.4.1] - 2026-01-22

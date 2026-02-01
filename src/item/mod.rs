@@ -202,11 +202,14 @@ impl Item {
         self.frontmatter.labels.retain(|l| l != label);
     }
 
-    /// Returns the directory containing this item (and its attachments).
+    /// Returns the attachment directory for this item.
     ///
+    /// The attachment directory is a sibling directory named `{item-stem}.attachments/`.
     /// Returns `None` if the item has no path set.
-    pub fn attachment_dir(&self) -> Option<&Path> {
-        self.path.as_ref().and_then(|p| p.parent())
+    pub fn attachment_dir(&self) -> Option<PathBuf> {
+        self.path
+            .as_ref()
+            .map(|p| crate::storage::attachment_dir_for_item(p))
     }
 
     /// Returns the attachments
@@ -316,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_is_url_file_path_returns_false() {
-        assert!(!is_url("260109-XXX-Attachment-1-screenshot.png"));
+        assert!(!is_url("1-screenshot.png"));
         assert!(!is_url("/path/to/file.txt"));
         assert!(!is_url("relative/path.md"));
         assert!(!is_url("ftp://example.com")); // Only http(s) are URLs
@@ -337,7 +340,7 @@ mod tests {
         let mut item = Item::new(fm);
         assert!(item.attachments().is_empty());
 
-        item.add_attachment("260109-AAA-Attachment-1-test.txt".to_string());
+        item.add_attachment("1-test.txt".to_string());
         assert_eq!(item.attachments().len(), 1);
 
         item.add_attachment("https://example.com".to_string());
@@ -379,10 +382,7 @@ mod tests {
     #[test]
     fn test_next_counter_with_existing() {
         let mut fm = sample_frontmatter("260109-AAA");
-        fm.attachments = vec![
-            "260109-AAA-Attachment-1-file.txt".to_string(),
-            "260109-AAA-Attachment-2-image.png".to_string(),
-        ];
+        fm.attachments = vec!["1-file.txt".to_string(), "2-image.png".to_string()];
         let item = Item::new(fm);
         assert_eq!(item.next_attachment_counter(), 3);
     }
@@ -391,8 +391,8 @@ mod tests {
     fn test_next_counter_with_gaps() {
         let mut fm = sample_frontmatter("260109-AAA");
         fm.attachments = vec![
-            "260109-AAA-Attachment-1-file.txt".to_string(),
-            "260109-AAA-Attachment-5-image.png".to_string(), // Gap: 2,3,4 missing
+            "1-file.txt".to_string(),
+            "5-image.png".to_string(), // Gap: 2,3,4 missing
         ];
         let item = Item::new(fm);
         assert_eq!(item.next_attachment_counter(), 6);
@@ -402,7 +402,7 @@ mod tests {
     fn test_next_counter_ignores_urls() {
         let mut fm = sample_frontmatter("260109-AAA");
         fm.attachments = vec![
-            "260109-AAA-Attachment-2-file.txt".to_string(),
+            "2-file.txt".to_string(),
             "https://example.com".to_string(),
             "http://test.com/page".to_string(),
         ];

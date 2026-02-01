@@ -248,14 +248,7 @@ fn test_close_moves_attachments_to_archive() {
     commands::init().unwrap();
 
     let item_id = "260101-AAA";
-    create_test_item_with_attachments(
-        &env,
-        item_id,
-        "Test Item",
-        "open",
-        &[&format!("{item_id}-Attachment-1-file.txt")],
-        None,
-    );
+    create_test_item_with_attachments(&env, item_id, "Test Item", "open", &["1-file.txt"], None);
 
     // Verify attachment exists in stack
     assert_eq!(env.list_attachment_files(item_id).len(), 1);
@@ -282,14 +275,7 @@ fn test_reopen_moves_attachments_from_archive() {
     commands::init().unwrap();
 
     let item_id = "260101-AAA";
-    create_test_item_with_attachments(
-        &env,
-        item_id,
-        "Test Item",
-        "open",
-        &[&format!("{item_id}-Attachment-1-file.txt")],
-        None,
-    );
+    create_test_item_with_attachments(&env, item_id, "Test Item", "open", &["1-file.txt"], None);
 
     // Close and then reopen
     execute_close(Some(item_id.to_string()), None).expect("close should succeed");
@@ -319,7 +305,7 @@ fn test_close_item_with_category_moves_attachments() {
         item_id,
         "Test Item",
         "open",
-        &[&format!("{item_id}-Attachment-1-file.txt")],
+        &["1-file.txt"],
         Some("bugs"),
     );
 
