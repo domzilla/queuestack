@@ -35,7 +35,7 @@ jobs:
       - name: Create Linux tarball
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          DIST_DIR="qs-${VERSION}-linux-x86_64"
+          DIST_DIR="qs-linux-x86_64"
 
           mkdir -p "$DIST_DIR/bin"
           mkdir -p "$DIST_DIR/completions"
@@ -48,11 +48,13 @@ jobs:
           "$DIST_DIR/bin/qs" completions zsh > "$DIST_DIR/completions/_qs"
           "$DIST_DIR/bin/qs" completions fish > "$DIST_DIR/completions/qs.fish"
 
-          # Create tarball
+          # Create versioned tarball
           tar -czf "qs-${VERSION}-linux-x86_64.tar.gz" "$DIST_DIR"
-
-          # Calculate SHA256
           sha256sum "qs-${VERSION}-linux-x86_64.tar.gz" > "qs-${VERSION}-linux-x86_64.tar.gz.sha256"
+
+          # Create stable (version-agnostic) tarball for /latest/ URL
+          cp "qs-${VERSION}-linux-x86_64.tar.gz" "qs-linux-x86_64.tar.gz"
+          sha256sum "qs-linux-x86_64.tar.gz" > "qs-linux-x86_64.tar.gz.sha256"
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v2
