@@ -1,0 +1,14 @@
+---
+version_source: cargo
+tag_prefix: v
+release_branch: master
+git_remotes:
+- github.com
+- origin
+publishers:
+- homebrew-tap
+post_publish_commands:
+- echo "Release {{version}} complete"
+homebrew-tap:
+  formula: queuestack
+  tap_repo: domzilla/homebrew-tap
