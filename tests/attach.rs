@@ -545,3 +545,49 @@ fn test_update_category_moves_attachments() {
         .collect();
     assert_eq!(attachment_files.len(), 1, "Attachment file should exist");
 }
+
+// =============================================================================
+// Markdown Attachment Exclusion Tests
+// =============================================================================
+
+/// Markdown files inside .attachments directories must not appear as items.
+#[test]
+fn test_markdown_attachment_not_listed_as_item() {
+    let env = TestEnv::new();
+    env.write_global_config(&GlobalConfigBuilder::new().interactive(false).build());
+    commands::init().unwrap();
+
+    // Create an item
+    let _item_path = create_test_item(&env, "260101-AAA", "Test Item", "open", &[], None);
+
+    // Create a markdown file as an attachment
+    let test_md = env.create_test_file("notes.md", "# Important Notes\n\nSome markdown content.");
+
+    // Attach the markdown file
+    let args = AttachAddArgs {
+        id: Some("260101-AAA".to_string()),
+        file: None,
+        sources: vec![test_md.to_string_lossy().to_string()],
+    };
+    commands::attach_add(&args).expect("attach add should succeed");
+
+    // Verify attachment was created
+    let attachments = env.list_attachment_files("260101-AAA");
+    assert_eq!(attachments.len(), 1);
+    assert!(attachments[0].to_string_lossy().ends_with(".md"));
+
+    // Use walk_items to list items - should only show the original item
+    let config = queuestack::Config::load().unwrap();
+    let items: Vec<_> = queuestack::storage::walk_items(&config).collect();
+
+    assert_eq!(
+        items.len(),
+        1,
+        "Only the item should be listed, not the markdown attachment"
+    );
+    assert!(items[0]
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .contains("260101-AAA"));
+}

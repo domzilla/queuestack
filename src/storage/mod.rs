@@ -36,6 +36,16 @@ fn walk_markdown_files(
                 .is_some_and(|ext| ext == ITEM_FILE_EXTENSION)
         })
         .map(walkdir::DirEntry::into_path)
+        .filter(|p| !is_inside_attachments_dir(p))
+}
+
+/// Checks if a path is inside an attachments directory.
+fn is_inside_attachments_dir(path: &Path) -> bool {
+    path.components().any(|c| {
+        c.as_os_str()
+            .to_string_lossy()
+            .ends_with(ATTACHMENTS_DIR_SUFFIX)
+    })
 }
 
 /// Walks all item files in the queuestack directory.

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Markdown files in `.attachments/` directories no longer appear as items in `qs list`
+
 ## [0.5.5] - 2026-02-01
 
 ### Fixed
