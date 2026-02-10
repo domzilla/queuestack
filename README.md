@@ -284,6 +284,10 @@ done < tasks.txt
 qs list --no-interactive | tail -n +3 > report.txt
 ```
 
+## Mac App
+
+[Queuestack for Mac](https://github.com/domzilla/Queuestack-macOS) is a native macOS app that brings all your queuestack projects together in one place. Browse, search, create, and edit items across projects without touching the terminal.
+
 ## License
 
 MIT
